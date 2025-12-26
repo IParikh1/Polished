@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Send, RefreshCw, User, Bot } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import axios from 'axios'
+import client from '../api/client'
 import './ChatInterface.css'
 
 interface Message {
@@ -89,7 +89,7 @@ function ChatInterface({ sessionId, initialAnalysis, onNewSession, onResumeUpdat
     setIsLoading(true)
 
     try {
-      const response = await axios.post('/api/chat', {
+      const response = await client.post('/api/chat', {
         message: userMessage,
         session_id: sessionId
       })

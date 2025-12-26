@@ -19,10 +19,18 @@ app = FastAPI(
     description="AI-powered Resume Review Agent with 20 years of hiring expertise"
 )
 
-# CORS middleware
+# CORS middleware - allow frontend domains
+allowed_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://getpolished.ai",
+    "https://www.getpolished.ai",
+    "https://polished.vercel.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

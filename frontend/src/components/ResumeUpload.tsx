@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { Upload, FileText, Loader, Sparkles, Shield, Target } from 'lucide-react'
-import axios from 'axios'
+import client from '../api/client'
 import './ResumeUpload.css'
 
 interface Props {
@@ -53,7 +53,7 @@ function ResumeUpload({ onUploadComplete }: Props) {
     formData.append('file', file)
 
     try {
-      const response = await axios.post('/api/upload', formData, {
+      const response = await client.post('/api/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
