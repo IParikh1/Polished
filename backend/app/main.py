@@ -25,6 +25,8 @@ allowed_origins = [
     "http://localhost:3000",
     "https://getpolished.ai",
     "https://www.getpolished.ai",
+    "https://polished-iparikh1s-projects.vercel.app",
+    "https://polished-git-main-iparikh1s-projects.vercel.app",
     "https://polished.vercel.app",
 ]
 
