@@ -36,7 +36,7 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Resume Review Agent</h1>
+        <h1>Polished</h1>
         <p>Expert AI with 20 years of tech hiring experience</p>
       </header>
 
@@ -60,7 +60,7 @@ function App() {
       </main>
 
       <footer className="app-footer">
-        <p>Powered by Claude AI | Expertise in Tech, IT & Engineering</p>
+        <p>Powered by Polished AI</p>
       </footer>
     </div>
   )

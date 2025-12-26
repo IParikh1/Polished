@@ -1,11 +1,11 @@
 ---
 allowed-tools: Bash(*), KillShell
-description: Stop the Resume Agent frontend and backend servers
+description: Stop the Polished frontend and backend servers
 ---
 
-# Stop Resume Agent Servers
+# Stop Polished Servers
 
-Stop both the Resume Agent backend and frontend servers that are running in the background.
+Stop both the Polished backend and frontend servers that are running in the background.
 
 ## Steps
 

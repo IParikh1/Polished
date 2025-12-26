@@ -1,11 +1,11 @@
 ---
 allowed-tools: Bash(*)
-description: Start the Resume Agent frontend and backend servers
+description: Start the Polished frontend and backend servers
 ---
 
-# Start Resume Agent Servers
+# Start Polished Servers
 
-Start both the Resume Agent backend (FastAPI) and frontend (React/Vite) servers.
+Start both the Polished backend (FastAPI) and frontend (React/Vite) servers.
 
 ## Steps
 

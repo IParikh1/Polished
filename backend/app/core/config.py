@@ -11,7 +11,7 @@ GOOGLE_SHEETS_CREDENTIALS = os.getenv("GOOGLE_SHEETS_CREDENTIALS", "")
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "")
 
 # App Settings
-APP_NAME = "Resume Review Agent"
+APP_NAME = "Polished"
 APP_VERSION = "1.0.0"
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
