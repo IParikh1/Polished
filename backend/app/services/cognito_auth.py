@@ -1,6 +1,7 @@
 """
 AWS Cognito authentication service.
 Handles JWT verification and user management.
+Gracefully handles missing dependencies.
 """
 
 import logging
@@ -12,9 +13,18 @@ from typing import Optional, Dict, Any
 from functools import lru_cache
 
 import httpx
-from jose import jwt, jwk, JWTError
-from jose.utils import base64url_decode
 from pydantic import BaseModel
+
+# Gracefully handle missing python-jose dependency
+try:
+    from jose import jwt, jwk, JWTError
+    JOSE_AVAILABLE = True
+except ImportError:
+    JOSE_AVAILABLE = False
+    jwt = None
+    jwk = None
+    JWTError = Exception
+    logging.getLogger(__name__).warning("python-jose not installed. JWT verification disabled.")
 
 from app.core.config import (
     COGNITO_USER_POOL_ID,
@@ -130,6 +140,10 @@ class CognitoAuth:
         Verify a Cognito JWT token and return user info.
         Returns None if token is invalid.
         """
+        if not JOSE_AVAILABLE:
+            logger.warning("python-jose not installed, skipping token verification")
+            return None
+
         if not self.is_configured:
             logger.warning("Cognito not configured, skipping token verification")
             return None
@@ -189,6 +203,9 @@ class CognitoAuth:
 
     def verify_token_sync(self, token: str) -> Optional[CognitoUser]:
         """Synchronous token verification for middleware."""
+        if not JOSE_AVAILABLE:
+            return None
+
         if not self.is_configured:
             return None
 
