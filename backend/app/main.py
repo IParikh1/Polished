@@ -2,8 +2,9 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import APP_NAME, APP_VERSION, DEBUG
+from app.core.config import APP_NAME, APP_VERSION, DEBUG, ALLOWED_ORIGINS
 from app.api.routes import router
+from app.api.billing_routes import router as billing_router
 
 # Configure logging
 logging.basicConfig(
@@ -20,7 +21,7 @@ app = FastAPI(
 )
 
 # CORS middleware - allow frontend domains
-allowed_origins = [
+default_origins = [
     "http://localhost:5173",
     "http://localhost:3000",
     "https://getpolished.ai",
@@ -29,6 +30,8 @@ allowed_origins = [
     "https://polished-polisheds-projects-2e1afa87.vercel.app",
     "https://polished.vercel.app",
 ]
+# Merge with any additional origins from config
+allowed_origins = list(set(default_origins + ALLOWED_ORIGINS))
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,6 +43,7 @@ app.add_middleware(
 
 # Include routes
 app.include_router(router, prefix="/api")
+app.include_router(billing_router, prefix="/api")
 
 
 @app.get("/")
@@ -52,7 +56,11 @@ async def root():
             "upload": "POST /api/upload - Upload resume for analysis",
             "chat": "POST /api/chat - Chat with the resume agent",
             "improve": "POST /api/improve - Get targeted improvements",
-            "session": "GET /api/session/{id} - Get session info"
+            "session": "GET /api/session/{id} - Get session info",
+            "delete_session": "DELETE /api/session/{id} - Delete session data",
+            "usage": "GET /api/usage - Get rate limit usage",
+            "checkout": "POST /api/billing/checkout - Create Pro subscription",
+            "portal": "POST /api/billing/portal - Manage subscription"
         }
     }
 
