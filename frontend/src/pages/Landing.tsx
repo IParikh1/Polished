@@ -20,8 +20,8 @@ function Landing() {
   const features = [
     {
       icon: <Sparkles size={28} />,
-      title: '20 Years of Expertise',
-      description: 'AI trained on insights from reviewing 50,000+ resumes at top tech companies'
+      title: 'FAANG-Level Expertise',
+      description: 'AI trained on best practices from top tech recruiters and hiring managers'
     },
     {
       icon: <FileCheck size={28} />,
@@ -89,7 +89,7 @@ function Landing() {
             <span className="gradient-text"> Polished</span>
           </h1>
           <p className="hero-subtitle">
-            Expert AI with 20 years of tech hiring experience.
+            AI trained on FAANG hiring best practices.
             Get instant feedback, ATS optimization, and professional rewrites.
           </p>
           <div className="hero-cta">
@@ -101,13 +101,13 @@ function Landing() {
           </div>
           <div className="hero-stats">
             <div className="stat">
-              <span className="stat-value">50K+</span>
-              <span className="stat-label">Resumes Analyzed</span>
+              <span className="stat-value">FAANG</span>
+              <span className="stat-label">Best Practices</span>
             </div>
             <div className="stat-divider" />
             <div className="stat">
-              <span className="stat-value">FAANG</span>
-              <span className="stat-label">Hiring Standards</span>
+              <span className="stat-value">ATS</span>
+              <span className="stat-label">Optimized</span>
             </div>
             <div className="stat-divider" />
             <div className="stat">

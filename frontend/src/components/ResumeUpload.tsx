@@ -80,7 +80,7 @@ function ResumeUpload({ onUploadComplete }: Props) {
                 <Loader className="spinner" size={32} />
               </div>
               <h3>Analyzing Your Resume</h3>
-              <p>Our expert AI is reviewing with 20 years of hiring experience...</p>
+              <p>Our AI is analyzing your resume using FAANG hiring best practices...</p>
               <div className="loading-steps">
                 <span className="step active">Parsing content</span>
                 <span className="step">Evaluating structure</span>
@@ -123,7 +123,7 @@ function ResumeUpload({ onUploadComplete }: Props) {
           </div>
           <div className="feature-content">
             <h3>Expert Analysis</h3>
-            <p>AI trained on 50,000+ resumes from top tech companies</p>
+            <p>AI trained on best practices from FAANG recruiters</p>
           </div>
         </div>
         <div className="feature">

@@ -45,7 +45,7 @@ function AppPage() {
           <Sparkles size={24} />
           <h1>Polished</h1>
         </div>
-        <p>Expert AI with 20 years of tech hiring experience</p>
+        <p>AI trained on FAANG hiring best practices</p>
       </header>
 
       <main className="app-main">

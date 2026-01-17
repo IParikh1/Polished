@@ -27,11 +27,22 @@ class ChatResponse(BaseModel):
     suggestions: Optional[List[str]] = None
 
 
+class UsageInfo(BaseModel):
+    """Rate limiting usage information."""
+    plan: str
+    used: int
+    limit: int
+    remaining: int
+    resets_at: Optional[str] = None
+    message: Optional[str] = None
+
+
 class ResumeUploadResponse(BaseModel):
     session_id: str
     message: str
     resume_text: str
     initial_analysis: str
+    usage: Optional[UsageInfo] = None
 
 
 class ResumeSection(BaseModel):
