@@ -4,7 +4,7 @@ Optimizes token usage to control costs while maintaining conversation quality.
 """
 
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -12,18 +12,55 @@ logger = logging.getLogger(__name__)
 class ContextManager:
     """Manages Claude context window to control costs."""
 
-    # Token limits
+    # Token limits - optimized for cost efficiency
     MAX_CONTEXT_TOKENS = 8000  # Leave room for response
     RESUME_TOKEN_ESTIMATE = 1500  # Average resume size
-    SYSTEM_PROMPT_TOKENS = 1500  # Approximate system prompt size
-    MAX_MESSAGES_TO_KEEP = 10  # Keep last N messages
+    SYSTEM_PROMPT_TOKENS = 800  # Optimized system prompt (down from 1500)
+    MAX_MESSAGES_TO_KEEP = 8  # Reduced from 10 for cost savings
+
+    # Cost tracking (Claude Sonnet pricing)
+    INPUT_COST_PER_1K = 0.003  # $3/1M input tokens
+    OUTPUT_COST_PER_1K = 0.015  # $15/1M output tokens
 
     def __init__(self):
-        pass
+        self._session_tokens: Dict[str, Dict[str, int]] = {}
 
     def estimate_tokens(self, text: str) -> int:
         """Estimate token count (rough approximation: 4 chars = 1 token)."""
         return len(text) // 4
+
+    def estimate_cost(self, input_tokens: int, output_tokens: int) -> float:
+        """Estimate cost for a request in dollars."""
+        input_cost = (input_tokens / 1000) * self.INPUT_COST_PER_1K
+        output_cost = (output_tokens / 1000) * self.OUTPUT_COST_PER_1K
+        return round(input_cost + output_cost, 6)
+
+    def track_usage(self, session_id: str, input_tokens: int, output_tokens: int) -> Dict[str, Any]:
+        """Track token usage for a session."""
+        if session_id not in self._session_tokens:
+            self._session_tokens[session_id] = {"input": 0, "output": 0, "requests": 0}
+
+        self._session_tokens[session_id]["input"] += input_tokens
+        self._session_tokens[session_id]["output"] += output_tokens
+        self._session_tokens[session_id]["requests"] += 1
+
+        usage = self._session_tokens[session_id]
+        return {
+            "session_input_tokens": usage["input"],
+            "session_output_tokens": usage["output"],
+            "session_requests": usage["requests"],
+            "session_cost": self.estimate_cost(usage["input"], usage["output"])
+        }
+
+    def get_session_usage(self, session_id: str) -> Dict[str, Any]:
+        """Get current usage for a session."""
+        usage = self._session_tokens.get(session_id, {"input": 0, "output": 0, "requests": 0})
+        return {
+            "input_tokens": usage["input"],
+            "output_tokens": usage["output"],
+            "requests": usage["requests"],
+            "estimated_cost": self.estimate_cost(usage["input"], usage["output"])
+        }
 
     def build_context(
         self,
@@ -55,31 +92,28 @@ class ContextManager:
             - 500  # Buffer for corrections and formatting
         )
 
-        # Build resume context with corrections
+        # Build resume context with corrections - OPTIMIZED for fewer tokens
         resume_text = session.get("resume_text", "")
         corrections = session.get("corrections", [])
 
+        # Compact corrections format
         corrections_text = ""
         if corrections:
-            corrections_text = "\n\n## USER CORRECTIONS (THESE OVERRIDE THE RESUME):\n" + \
-                             "\n".join(f"- {c}" for c in corrections[-5:])  # Last 5 corrections
+            corrections_text = "\nCORRECTIONS: " + "; ".join(corrections[-5:])
 
-        # Add resume as first message
+        # Optimized resume framing (~80 tokens vs ~200)
         messages.append({
             "role": "user",
-            "content": f"""## ORIGINAL RESUME (SOURCE OF TRUTH FOR ALL FACTS):
----
+            "content": f"""RESUME (source of truth):
 {resume_text}
----
 {corrections_text}
-
-IMPORTANT: When improving or rewriting this resume, you MUST use ONLY the facts from this original resume and any user corrections above."""
+Use ONLY these facts. Never invent details."""
         })
 
-        # Add acknowledgment
+        # Short acknowledgment (~20 tokens vs ~60)
         messages.append({
             "role": "assistant",
-            "content": "I understand. I will ONLY use factual information from the original resume you provided and any corrections you give me. I will never invent or hallucinate any details. How can I help you improve your resume today?"
+            "content": "Understood. I'll only use facts from your resume and corrections. How can I help?"
         })
 
         # Add conversation history (most recent messages that fit)

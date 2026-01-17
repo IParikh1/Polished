@@ -19,6 +19,7 @@ from app.services.resume_agent import resume_agent
 from app.services.session_store import session_store
 from app.services.context_manager import context_manager
 from app.services.rate_limiter import rate_limiter, PlanType
+from app.services.response_cache import response_cache, get_generic_advice
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -121,6 +122,7 @@ async def chat(request: ChatRequest):
     """
     Continue conversation with the resume agent.
     Session must exist and not be expired.
+    Uses response caching for generic questions to reduce API costs.
     """
     try:
         # Get session from Redis
@@ -145,34 +147,36 @@ async def chat(request: ChatRequest):
             tokens=user_tokens
         )
 
-        # Refresh session data after adding message
-        session = session_store.get_session(request.session_id)
+        # Check for generic advice first (no API call needed)
+        generic_response = get_generic_advice(request.message)
+        if generic_response:
+            logger.info(f"Serving generic advice for: {request.message[:50]}...")
+            response = generic_response
+        else:
+            # Check response cache for similar questions
+            cached_response = response_cache.get_cached_response(request.message)
+            if cached_response:
+                logger.info(f"Cache hit for: {request.message[:50]}...")
+                response = cached_response
+            else:
+                # Refresh session data after adding message
+                session = session_store.get_session(request.session_id)
 
-        # Build optimized context
-        messages = context_manager.build_context(
-            session,
-            resume_agent.system_prompt,
-            request.message
-        )
+                # Get response from Claude
+                history_messages = [
+                    Message(role=MessageRole(m["role"]), content=m["content"])
+                    for m in session.get("messages", [])[:-1]  # Exclude message we just added
+                ]
 
-        # Get response from Claude (using messages directly)
-        from app.services.llm_service import chat_completion
-        response = chat_completion(messages[:-1], resume_agent.system_prompt)
-        # Note: We built context including current message, but chat_completion
-        # expects history without current message, so we use the agent's chat method
+                response = resume_agent.chat(
+                    request.message,
+                    history_messages,
+                    session.get("resume_text"),
+                    session.get("corrections", [])
+                )
 
-        # Actually, let's use the agent properly
-        history_messages = [
-            Message(role=MessageRole(m["role"]), content=m["content"])
-            for m in session.get("messages", [])[:-1]  # Exclude message we just added
-        ]
-
-        response = resume_agent.chat(
-            request.message,
-            history_messages,
-            session.get("resume_text"),
-            session.get("corrections", [])
-        )
+                # Cache cacheable responses for future use
+                response_cache.cache_response(request.message, response)
 
         # Store assistant response
         response_tokens = context_manager.estimate_tokens(response)
@@ -181,6 +185,13 @@ async def chat(request: ChatRequest):
             role="assistant",
             content=response,
             tokens=response_tokens
+        )
+
+        # Track token usage for cost monitoring
+        context_manager.track_usage(
+            request.session_id,
+            user_tokens,
+            response_tokens
         )
 
         return ChatResponse(
