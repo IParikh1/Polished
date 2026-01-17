@@ -34,13 +34,26 @@ STRIPE_PRICE_PRO = os.getenv("STRIPE_PRICE_PRO", "")  # price_xxx for $9/mo
 STRIPE_PRICE_ENTERPRISE = os.getenv("STRIPE_PRICE_ENTERPRISE", "")
 
 # =============================================================================
+# AWS Cognito (Authentication)
+# =============================================================================
+COGNITO_USER_POOL_ID = os.getenv("COGNITO_USER_POOL_ID", "")
+COGNITO_CLIENT_ID = os.getenv("COGNITO_CLIENT_ID", "")
+COGNITO_CLIENT_SECRET = os.getenv("COGNITO_CLIENT_SECRET", "")  # Optional
+COGNITO_REGION = os.getenv("COGNITO_REGION", "us-east-1")
+COGNITO_DOMAIN = os.getenv("COGNITO_DOMAIN", "")  # your-domain.auth.us-east-1.amazoncognito.com
+
+# Derived Cognito URLs
+COGNITO_ISSUER = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}" if COGNITO_USER_POOL_ID else ""
+COGNITO_JWKS_URL = f"{COGNITO_ISSUER}/.well-known/jwks.json" if COGNITO_ISSUER else ""
+
+# =============================================================================
 # App Settings
 # =============================================================================
 APP_NAME = "Polished"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
-# Frontend URL (for Stripe redirects)
+# Frontend URL (for Cognito and Stripe redirects)
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 # =============================================================================

@@ -1,13 +1,14 @@
 """
 API routes for Polished resume review service.
 Uses Redis for session storage with 24-hour auto-expiry.
+Supports both authenticated (Cognito) and anonymous users.
 """
 
 import uuid
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Header
+from fastapi import APIRouter, UploadFile, File, HTTPException, Header, Depends
 from fastapi.responses import StreamingResponse
 
 from app.models.schemas import (
@@ -20,6 +21,7 @@ from app.services.session_store import session_store
 from app.services.context_manager import context_manager
 from app.services.rate_limiter import rate_limiter, PlanType
 from app.services.response_cache import response_cache, get_generic_advice
+from app.core.auth import get_auth_context, AuthContext
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -43,18 +45,27 @@ def get_user_plan(x_user_plan: Optional[str] = None) -> PlanType:
 @router.post("/upload", response_model=ResumeUploadResponse)
 async def upload_resume(
     file: UploadFile = File(...),
+    auth: AuthContext = Depends(get_auth_context),
     x_user_id: Optional[str] = Header(None),
     x_user_plan: Optional[str] = Header(None)
 ):
     """
     Upload and analyze a resume.
     Creates a new session that auto-expires in 24 hours.
+    Supports both authenticated (Cognito JWT) and anonymous users.
     """
     try:
         # Generate session ID
         session_id = str(uuid.uuid4())
-        user_id = get_user_id(x_user_id, session_id)
-        plan = get_user_plan(x_user_plan)
+
+        # Use auth context if authenticated, otherwise fall back to headers
+        if auth.is_authenticated:
+            user_id = auth.user_id
+            plan = auth.plan
+            logger.info(f"Authenticated upload by user {user_id[:8]}... (plan: {plan.value})")
+        else:
+            user_id = get_user_id(x_user_id, session_id)
+            plan = get_user_plan(x_user_plan)
 
         # Check rate limit
         allowed, usage_info = rate_limiter.check_and_increment(user_id, plan)
@@ -272,14 +283,23 @@ async def delete_session(session_id: str):
 
 @router.get("/usage")
 async def get_usage(
+    auth: AuthContext = Depends(get_auth_context),
     x_user_id: Optional[str] = Header(None),
     x_user_plan: Optional[str] = Header(None)
 ):
     """Get current usage information for rate limiting."""
-    user_id = get_user_id(x_user_id)
-    plan = get_user_plan(x_user_plan)
+    if auth.is_authenticated:
+        user_id = auth.user_id
+        plan = auth.plan
+    else:
+        user_id = get_user_id(x_user_id)
+        plan = get_user_plan(x_user_plan)
 
-    return rate_limiter.get_usage(user_id, plan)
+    usage = rate_limiter.get_usage(user_id, plan)
+    usage["authenticated"] = auth.is_authenticated
+    if auth.user:
+        usage["email"] = auth.user.email
+    return usage
 
 
 @router.get("/health")
@@ -307,17 +327,25 @@ from app.services.llm_service import format_sse, format_sse_json
 @router.post("/upload/stream")
 async def upload_resume_stream(
     file: UploadFile = File(...),
+    auth: AuthContext = Depends(get_auth_context),
     x_user_id: Optional[str] = Header(None),
     x_user_plan: Optional[str] = Header(None)
 ):
     """
     Upload and analyze a resume with streaming response.
     Returns SSE stream with real-time analysis.
+    Supports both authenticated (Cognito JWT) and anonymous users.
     """
     # Generate session ID and check rate limit first
     session_id = str(uuid.uuid4())
-    user_id = get_user_id(x_user_id, session_id)
-    plan = get_user_plan(x_user_plan)
+
+    # Use auth context if authenticated, otherwise fall back to headers
+    if auth.is_authenticated:
+        user_id = auth.user_id
+        plan = auth.plan
+    else:
+        user_id = get_user_id(x_user_id, session_id)
+        plan = get_user_plan(x_user_plan)
 
     allowed, usage_info = rate_limiter.check_and_increment(user_id, plan)
     if not allowed:

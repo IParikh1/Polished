@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import APP_NAME, APP_VERSION, DEBUG, ALLOWED_ORIGINS
 from app.api.routes import router
 from app.api.billing_routes import router as billing_router
+from app.api.auth_routes import router as auth_router
 
 # Configure logging
 logging.basicConfig(
@@ -44,6 +45,7 @@ app.add_middleware(
 # Include routes
 app.include_router(router, prefix="/api")
 app.include_router(billing_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
 
 
 @app.get("/")
@@ -52,19 +54,34 @@ async def root():
         "name": APP_NAME,
         "version": APP_VERSION,
         "status": "running",
-        "features": ["streaming", "caching", "rate_limiting"],
+        "features": ["streaming", "caching", "rate_limiting", "cognito_auth"],
         "endpoints": {
-            "upload": "POST /api/upload - Upload resume for analysis",
-            "upload_stream": "POST /api/upload/stream - Upload with streaming analysis (SSE)",
-            "chat": "POST /api/chat - Chat with the resume agent",
-            "chat_stream": "POST /api/chat/stream - Chat with streaming response (SSE)",
-            "improve": "POST /api/improve - Get targeted improvements",
-            "improve_stream": "POST /api/improve/stream - Improvements with streaming (SSE)",
-            "session": "GET /api/session/{id} - Get session info",
-            "delete_session": "DELETE /api/session/{id} - Delete session data",
-            "usage": "GET /api/usage - Get rate limit usage",
-            "checkout": "POST /api/billing/checkout - Create Pro subscription",
-            "portal": "POST /api/billing/portal - Manage subscription"
+            "auth": {
+                "login": "GET /api/auth/login - Redirect to Cognito login",
+                "logout": "GET /api/auth/logout - Logout and clear session",
+                "callback": "GET /api/auth/callback - OAuth callback (exchange code for tokens)",
+                "refresh": "POST /api/auth/refresh - Refresh access token",
+                "me": "GET /api/auth/me - Get current user info (requires auth)",
+                "verify": "GET /api/auth/verify - Verify token validity",
+                "config": "GET /api/auth/config - Get Cognito config for frontend"
+            },
+            "resume": {
+                "upload": "POST /api/upload - Upload resume for analysis",
+                "upload_stream": "POST /api/upload/stream - Upload with streaming (SSE)",
+                "chat": "POST /api/chat - Chat with the resume agent",
+                "chat_stream": "POST /api/chat/stream - Chat with streaming (SSE)",
+                "improve": "POST /api/improve - Get targeted improvements",
+                "improve_stream": "POST /api/improve/stream - Improvements with streaming (SSE)"
+            },
+            "session": {
+                "get": "GET /api/session/{id} - Get session info",
+                "delete": "DELETE /api/session/{id} - Delete session data",
+                "usage": "GET /api/usage - Get rate limit usage"
+            },
+            "billing": {
+                "checkout": "POST /api/billing/checkout - Create Pro subscription",
+                "portal": "POST /api/billing/portal - Manage subscription"
+            }
         }
     }
 
