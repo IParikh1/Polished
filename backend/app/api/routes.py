@@ -290,7 +290,254 @@ async def health_check():
 
     return {
         "status": "healthy",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "redis_connected": redis_ok,
-        "session_ttl_hours": 24
+        "session_ttl_hours": 24,
+        "features": ["streaming", "caching"]
     }
+
+
+# =============================================================================
+# STREAMING ENDPOINTS
+# =============================================================================
+
+from app.services.llm_service import format_sse, format_sse_json
+
+
+@router.post("/upload/stream")
+async def upload_resume_stream(
+    file: UploadFile = File(...),
+    x_user_id: Optional[str] = Header(None),
+    x_user_plan: Optional[str] = Header(None)
+):
+    """
+    Upload and analyze a resume with streaming response.
+    Returns SSE stream with real-time analysis.
+    """
+    # Generate session ID and check rate limit first
+    session_id = str(uuid.uuid4())
+    user_id = get_user_id(x_user_id, session_id)
+    plan = get_user_plan(x_user_plan)
+
+    allowed, usage_info = rate_limiter.check_and_increment(user_id, plan)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"message": "Rate limit exceeded", "usage": usage_info}
+        )
+
+    # Read and parse file
+    content = await file.read()
+    try:
+        resume_text = parse_resume(content, file.filename or "resume.txt")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Create session
+    session_store.create_session(session_id, resume_text)
+
+    async def generate():
+        """Generate SSE stream for resume analysis."""
+        full_response = []
+
+        # Send session info first
+        yield format_sse_json({
+            "type": "session",
+            "session_id": session_id,
+            "resume_preview": resume_text[:500] + "..." if len(resume_text) > 500 else resume_text
+        }, event="meta")
+
+        # Stream the analysis
+        try:
+            for chunk in resume_agent.analyze_resume_stream(resume_text):
+                full_response.append(chunk)
+                yield format_sse_json({"type": "content", "text": chunk}, event="content")
+
+            # Store complete response
+            complete_response = "".join(full_response)
+            session_store.add_message(
+                session_id,
+                role="assistant",
+                content=complete_response,
+                tokens=context_manager.estimate_tokens(complete_response)
+            )
+
+            # Send completion event
+            yield format_sse_json({
+                "type": "done",
+                "session_id": session_id,
+                "usage": usage_info
+            }, event="done")
+
+        except Exception as e:
+            logger.error(f"Streaming error: {e}")
+            yield format_sse_json({"type": "error", "message": str(e)}, event="error")
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@router.post("/chat/stream")
+async def chat_stream(request: ChatRequest):
+    """
+    Chat with streaming response.
+    Returns SSE stream with real-time response.
+    """
+    # Get session
+    session = session_store.get_session(request.session_id)
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found or expired. Please upload your resume again."
+        )
+
+    # Detect corrections
+    if detect_correction(request.message):
+        session_store.add_correction(request.session_id, request.message)
+        logger.info(f"User correction detected in session {request.session_id[:8]}...")
+
+    # Add user message
+    user_tokens = context_manager.estimate_tokens(request.message)
+    session_store.add_message(
+        request.session_id,
+        role="user",
+        content=request.message,
+        tokens=user_tokens
+    )
+
+    # Check for cached/generic response first
+    generic_response = get_generic_advice(request.message)
+    cached_response = response_cache.get_cached_response(request.message) if not generic_response else None
+
+    async def generate():
+        """Generate SSE stream for chat response."""
+        full_response = []
+
+        if generic_response:
+            # Stream generic advice character by character for consistent UX
+            for char in generic_response:
+                full_response.append(char)
+                yield format_sse_json({"type": "content", "text": char}, event="content")
+
+        elif cached_response:
+            # Stream cached response
+            for char in cached_response:
+                full_response.append(char)
+                yield format_sse_json({"type": "content", "text": char}, event="content")
+
+        else:
+            # Refresh session and stream from Claude
+            session = session_store.get_session(request.session_id)
+            history_messages = [
+                Message(role=MessageRole(m["role"]), content=m["content"])
+                for m in session.get("messages", [])[:-1]
+            ]
+
+            try:
+                for chunk, usage in resume_agent.chat_stream_with_usage(
+                    request.message,
+                    history_messages,
+                    session.get("resume_text"),
+                    session.get("corrections", [])
+                ):
+                    if chunk:
+                        full_response.append(chunk)
+                        yield format_sse_json({"type": "content", "text": chunk}, event="content")
+
+                    if usage:
+                        # Track actual usage from API
+                        context_manager.track_usage(
+                            request.session_id,
+                            usage["input_tokens"],
+                            usage["output_tokens"]
+                        )
+                        yield format_sse_json({"type": "usage", **usage}, event="usage")
+
+                # Cache response if applicable
+                complete_response = "".join(full_response)
+                response_cache.cache_response(request.message, complete_response)
+
+            except Exception as e:
+                logger.error(f"Chat streaming error: {e}")
+                yield format_sse_json({"type": "error", "message": str(e)}, event="error")
+                return
+
+        # Store complete response
+        complete_response = "".join(full_response)
+        response_tokens = context_manager.estimate_tokens(complete_response)
+        session_store.add_message(
+            request.session_id,
+            role="assistant",
+            content=complete_response,
+            tokens=response_tokens
+        )
+
+        yield format_sse_json({
+            "type": "done",
+            "session_id": request.session_id
+        }, event="done")
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@router.post("/improve/stream")
+async def suggest_improvements_stream(
+    session_id: str,
+    target_role: str,
+    target_company: Optional[str] = None
+):
+    """Get targeted improvement suggestions with streaming."""
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found or expired"
+        )
+
+    resume_text = session.get("resume_text")
+    if not resume_text:
+        raise HTTPException(
+            status_code=400,
+            detail="No resume found in session"
+        )
+
+    async def generate():
+        """Generate SSE stream for improvements."""
+        try:
+            for chunk in resume_agent.suggest_improvements_stream(
+                resume_text,
+                target_role,
+                target_company
+            ):
+                yield format_sse_json({"type": "content", "text": chunk}, event="content")
+
+            yield format_sse_json({"type": "done"}, event="done")
+
+        except Exception as e:
+            logger.error(f"Improvements streaming error: {e}")
+            yield format_sse_json({"type": "error", "message": str(e)}, event="error")
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )

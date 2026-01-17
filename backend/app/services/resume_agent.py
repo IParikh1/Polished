@@ -1,11 +1,12 @@
 """
 Expert Resume Review Agent - Optimized for token efficiency.
 ~800 tokens vs original ~1500 tokens (47% reduction)
+Supports both standard and streaming responses.
 """
 
 import logging
-from typing import List, Optional
-from app.services.llm_service import chat_completion
+from typing import List, Optional, Generator
+from app.services.llm_service import chat_completion, stream_completion, stream_completion_with_usage
 from app.models.schemas import Message, MessageRole
 
 logger = logging.getLogger(__name__)
@@ -139,6 +140,128 @@ Show: 1) Improved version 2) What changed and why"""
         ]
 
         return chat_completion(messages, self.system_prompt)
+
+    # =========================================================================
+    # STREAMING METHODS
+    # =========================================================================
+
+    def analyze_resume_stream(self, resume_text: str) -> Generator[str, None, None]:
+        """Stream initial resume analysis."""
+        messages = [
+            {
+                "role": "user",
+                "content": f"""Analyze this resume:
+
+{resume_text}
+
+Provide: 1) Overall score (1-10) 2) ATS score (1-10) 3) Top 3 strengths 4) Top 3 improvements 5) Target companies 6) One bullet rewrite (before/after)"""
+            }
+        ]
+
+        yield from stream_completion(messages, self.system_prompt)
+
+    def chat_stream(
+        self,
+        user_message: str,
+        conversation_history: List[Message],
+        resume_text: Optional[str] = None,
+        user_corrections: Optional[List[str]] = None
+    ) -> Generator[str, None, None]:
+        """Stream chat response."""
+        messages = []
+
+        if resume_text:
+            corrections_text = ""
+            if user_corrections:
+                corrections_text = "\nCORRECTIONS: " + "; ".join(user_corrections[-5:])
+
+            messages.append({
+                "role": "user",
+                "content": f"""RESUME (source of truth):
+{resume_text}
+{corrections_text}
+Use ONLY these facts. Never invent details."""
+            })
+            messages.append({
+                "role": "assistant",
+                "content": "Understood. I'll only use facts from your resume and corrections. How can I help?"
+            })
+
+        for msg in conversation_history:
+            messages.append({
+                "role": msg.role.value,
+                "content": msg.content
+            })
+
+        messages.append({
+            "role": "user",
+            "content": user_message
+        })
+
+        yield from stream_completion(messages, self.system_prompt)
+
+    def chat_stream_with_usage(
+        self,
+        user_message: str,
+        conversation_history: List[Message],
+        resume_text: Optional[str] = None,
+        user_corrections: Optional[List[str]] = None
+    ) -> Generator[tuple, None, None]:
+        """Stream chat response with usage stats at end."""
+        messages = []
+
+        if resume_text:
+            corrections_text = ""
+            if user_corrections:
+                corrections_text = "\nCORRECTIONS: " + "; ".join(user_corrections[-5:])
+
+            messages.append({
+                "role": "user",
+                "content": f"""RESUME (source of truth):
+{resume_text}
+{corrections_text}
+Use ONLY these facts. Never invent details."""
+            })
+            messages.append({
+                "role": "assistant",
+                "content": "Understood. I'll only use facts from your resume and corrections. How can I help?"
+            })
+
+        for msg in conversation_history:
+            messages.append({
+                "role": msg.role.value,
+                "content": msg.content
+            })
+
+        messages.append({
+            "role": "user",
+            "content": user_message
+        })
+
+        yield from stream_completion_with_usage(messages, self.system_prompt)
+
+    def suggest_improvements_stream(
+        self,
+        resume_text: str,
+        target_role: str,
+        target_company: Optional[str] = None
+    ) -> Generator[str, None, None]:
+        """Stream improvement suggestions."""
+        company_context = f" at {target_company}" if target_company else ""
+
+        messages = [
+            {
+                "role": "user",
+                "content": f"""Resume:
+{resume_text}
+
+Target: {target_role}{company_context}
+
+Provide: 1) Match score (1-10) 2) 5 specific changes 3) Keywords to add 4) What to emphasize 5) What to de-emphasize 6) Best bullet rewritten for this role"""
+            }
+        ]
+
+        yield from stream_completion(messages, self.system_prompt)
 
 
 # Singleton instance
