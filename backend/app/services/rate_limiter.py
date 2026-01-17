@@ -147,9 +147,10 @@ class RateLimiter:
         """
         allowed, usage_info = self.check_limit(user_id, plan)
 
-        if allowed:
+        if allowed and self.redis:
             usage_info = self.increment_usage(user_id, plan)
-            usage_info["remaining"] = max(0, usage_info["remaining"])
+            if "remaining" in usage_info:
+                usage_info["remaining"] = max(0, usage_info["remaining"])
 
         return allowed, usage_info
 
