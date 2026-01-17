@@ -7,12 +7,20 @@ import logging
 import os
 from typing import Optional, Dict, Any
 
-import stripe
+# Gracefully handle missing stripe dependency
+try:
+    import stripe
+    STRIPE_AVAILABLE = True
+except ImportError:
+    STRIPE_AVAILABLE = False
+    stripe = None
+    logging.getLogger(__name__).warning("stripe not installed. Billing disabled.")
 
 logger = logging.getLogger(__name__)
 
 # Initialize Stripe
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
+if STRIPE_AVAILABLE and stripe:
+    stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
 
 
 class BillingService:
@@ -22,7 +30,9 @@ class BillingService:
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
     def __init__(self):
-        if not stripe.api_key:
+        if not STRIPE_AVAILABLE:
+            logger.warning("Stripe not installed. Billing disabled.")
+        elif not stripe.api_key:
             logger.warning("Stripe API key not configured. Billing disabled.")
 
     def create_checkout_session(
@@ -36,7 +46,7 @@ class BillingService:
         Create Stripe Checkout session for Pro subscription.
         Returns session URL for redirect.
         """
-        if not stripe.api_key or not self.PRICE_PRO:
+        if not STRIPE_AVAILABLE or not stripe.api_key or not self.PRICE_PRO:
             raise ValueError("Stripe not configured")
 
         success_url = success_url or f"{self.FRONTEND_URL}/billing/success"
@@ -77,7 +87,7 @@ class BillingService:
         """
         Create Stripe Customer Portal session for subscription management.
         """
-        if not stripe.api_key:
+        if not STRIPE_AVAILABLE or not stripe.api_key:
             raise ValueError("Stripe not configured")
 
         try:
@@ -94,7 +104,7 @@ class BillingService:
 
     def get_subscription_status(self, customer_id: str) -> Dict[str, Any]:
         """Get current subscription status for a customer."""
-        if not stripe.api_key:
+        if not STRIPE_AVAILABLE or not stripe.api_key:
             return {"status": "inactive", "plan": "free"}
 
         try:
@@ -122,7 +132,7 @@ class BillingService:
 
     def cancel_subscription(self, subscription_id: str) -> bool:
         """Cancel subscription at period end."""
-        if not stripe.api_key:
+        if not STRIPE_AVAILABLE or not stripe.api_key:
             raise ValueError("Stripe not configured")
 
         try:
@@ -142,6 +152,9 @@ class BillingService:
         Process Stripe webhook events.
         Returns event type and relevant data.
         """
+        if not STRIPE_AVAILABLE:
+            raise ValueError("Stripe not available")
+
         webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "")
         if not webhook_secret:
             raise ValueError("Webhook secret not configured")
