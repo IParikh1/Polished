@@ -15,15 +15,18 @@ function AppPage() {
   const navigate = useNavigate()
   const [session, setSession] = useState<SessionData | null>(null)
   const [resumeContent, setResumeContent] = useState<string>('')
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
 
-  const handleUploadComplete = (sessionId: string, initialAnalysis: string) => {
+  const handleUploadComplete = (sessionId: string, initialAnalysis: string, file: File) => {
     setSession({ sessionId, initialAnalysis })
+    setPdfFile(file)
     setResumeContent('')
   }
 
   const handleNewSession = () => {
     setSession(null)
+    setPdfFile(null)
     setResumeContent('')
   }
 
@@ -60,6 +63,7 @@ function AppPage() {
               onResumeUpdate={handleResumeUpdate}
             />
             <ResumePreview
+              pdfFile={pdfFile}
               resumeContent={resumeContent}
               isUpdating={isUpdating}
             />

@@ -13,9 +13,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1rem;
   background: white;
   border-bottom: 1px solid #eee;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .preview-title {
@@ -30,26 +32,56 @@
   color: #667eea;
 }
 
-.updating-badge {
+.preview-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.zoom-controls,
+.page-controls {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 0.25rem;
+}
+
+.zoom-controls button,
+.page-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #4b5563;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.zoom-controls button:hover:not(:disabled),
+.page-controls button:hover:not(:disabled) {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.zoom-controls button:disabled,
+.page-controls button:disabled {
+  color: #d1d5db;
+  cursor: not-allowed;
+}
+
+.zoom-level,
+.page-info {
   font-size: 0.75rem;
   font-weight: 500;
-  color: #667eea;
-  background: #f0f3ff;
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  margin-left: 0.5rem;
-}
-
-.updating-badge .spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  color: #6b7280;
+  min-width: 45px;
+  text-align: center;
 }
 
 .download-btn {
@@ -62,7 +94,7 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
   transition: background 0.2s;
 }
@@ -78,87 +110,102 @@
 
 .resume-preview-scroll {
   flex: 1;
-  overflow-y: auto;
-  padding: 2rem;
+  overflow: auto;
+  padding: 1.5rem;
   display: flex;
   justify-content: center;
+  background: #e5e7eb;
 }
 
-.resume-paper {
-  background: white;
-  width: 100%;
-  max-width: 8.5in;
-  min-height: 11in;
-  padding: 1in;
+/* PDF Container */
+.pdf-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.pdf-container .react-pdf__Document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pdf-container .react-pdf__Page {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 11pt;
-  line-height: 1.4;
-  color: #1a1a1a;
+  background: white;
 }
 
-/* Resume typography */
-.resume-paper h1 {
-  font-size: 20pt;
-  font-weight: 700;
+.pdf-container .react-pdf__Page canvas {
+  display: block;
+  max-width: 100%;
+  height: auto !important;
+}
+
+/* Loading state */
+.pdf-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Error state */
+.pdf-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: #ef4444;
+  background: #fef2f2;
+  border-radius: 8px;
+}
+
+/* Non-PDF preview */
+.non-pdf-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #9ca3af;
   text-align: center;
-  margin-bottom: 0.25rem;
-  color: #000;
-  border-bottom: none;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
-.resume-paper h2 {
-  font-size: 12pt;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid #333;
-  padding-bottom: 0.25rem;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-  color: #000;
+.non-pdf-preview svg {
+  color: #d1d5db;
+  margin-bottom: 1rem;
 }
 
-.resume-paper h3 {
-  font-size: 11pt;
-  font-weight: 700;
-  margin-top: 0.5rem;
-  margin-bottom: 0.25rem;
-  color: #000;
+.non-pdf-preview p {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #6b7280;
+  margin: 0 0 0.5rem 0;
 }
 
-.resume-paper p {
-  margin: 0.25rem 0;
-}
-
-.resume-paper ul {
-  margin: 0.25rem 0;
-  padding-left: 1.25rem;
-}
-
-.resume-paper li {
-  margin: 0.15rem 0;
-}
-
-.resume-paper strong {
-  font-weight: 700;
-}
-
-.resume-paper em {
-  font-style: italic;
-}
-
-.resume-paper hr {
-  border: none;
-  border-top: 1px solid #ccc;
-  margin: 0.5rem 0;
-}
-
-/* Contact info styling */
-.resume-paper > p:first-of-type {
-  text-align: center;
-  font-size: 10pt;
-  color: #444;
+.non-pdf-preview span {
+  font-size: 0.875rem;
 }
 
 /* Empty state */
@@ -189,18 +236,37 @@
   font-size: 0.9rem;
 }
 
+/* Responsive adjustments */
 @media (max-width: 1200px) {
   .resume-preview-container {
     min-width: 350px;
   }
 
-  .resume-paper {
-    padding: 0.5in;
+  .resume-preview-header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .preview-controls {
+    gap: 0.5rem;
+  }
+
+  .download-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
   }
 }
 
 @media (max-width: 900px) {
   .resume-preview-container {
     min-width: 100%;
+  }
+
+  .resume-preview-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .preview-controls {
+    justify-content: space-between;
   }
 }

@@ -4,7 +4,7 @@ import client from '../api/client'
 import './ResumeUpload.css'
 
 interface Props {
-  onUploadComplete: (sessionId: string, initialAnalysis: string) => void
+  onUploadComplete: (sessionId: string, initialAnalysis: string, pdfFile: File) => void
 }
 
 function ResumeUpload({ onUploadComplete }: Props) {
@@ -57,7 +57,7 @@ function ResumeUpload({ onUploadComplete }: Props) {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
-      onUploadComplete(response.data.session_id, response.data.initial_analysis)
+      onUploadComplete(response.data.session_id, response.data.initial_analysis, file)
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to upload resume')
     } finally {
