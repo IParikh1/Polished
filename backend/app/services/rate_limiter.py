@@ -10,7 +10,14 @@ from datetime import datetime, timedelta
 from typing import Tuple, Dict, Any, Optional
 from enum import Enum
 
-import redis
+# Gracefully handle missing redis dependency
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    redis = None
+    logging.getLogger(__name__).warning("redis not installed. Rate limiting will be permissive.")
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +48,17 @@ class RateLimiter:
     """Enforce usage limits per plan."""
 
     def __init__(self):
+        if not REDIS_AVAILABLE:
+            logger.warning("Redis not available for rate limiting. Using permissive mode.")
+            self.redis = None
+            return
+
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         try:
             self.redis = redis.from_url(redis_url, decode_responses=True)
             self.redis.ping()
         except redis.ConnectionError:
-            logger.warning("Redis not available for rate limiting. Using permissive mode.")
+            logger.warning("Redis connection failed. Using permissive mode.")
             self.redis = None
 
     def _usage_key(self, user_id: str) -> str:

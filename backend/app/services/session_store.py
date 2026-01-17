@@ -9,7 +9,14 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
-import redis
+# Gracefully handle missing redis dependency
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    redis = None
+    logging.getLogger(__name__).warning("redis not installed. Using in-memory session store.")
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +28,13 @@ class SessionStore:
     TTL_SECONDS = TTL_HOURS * 60 * 60
 
     def __init__(self):
+        self._fallback_store: Dict[str, Dict] = {}
+
+        if not REDIS_AVAILABLE:
+            logger.warning("Redis not available. Using in-memory fallback.")
+            self.redis = None
+            return
+
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         try:
             self.redis = redis.from_url(redis_url, decode_responses=True)
@@ -29,7 +43,6 @@ class SessionStore:
         except redis.ConnectionError as e:
             logger.warning(f"Redis connection failed: {e}. Using in-memory fallback.")
             self.redis = None
-            self._fallback_store: Dict[str, Dict] = {}
 
     def _key(self, session_id: str) -> str:
         """Generate Redis key for session."""
