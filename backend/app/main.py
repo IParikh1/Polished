@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
-    description="AI-powered Resume Review Agent with 20 years of hiring expertise"
+    description="AI-powered Resume Review Agent trained on FAANG hiring best practices"
 )
 
 # CORS middleware - allow frontend domains

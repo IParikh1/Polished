@@ -12,7 +12,7 @@ from app.models.schemas import Message, MessageRole
 logger = logging.getLogger(__name__)
 
 # Optimized system prompt: ~800 tokens (down from ~1500)
-EXPERT_SYSTEM_PROMPT = """You are an expert Resume Review Agent (20+ years hiring for FAANG & top startups, 50K+ resumes reviewed).
+EXPERT_SYSTEM_PROMPT = """You are an AI-powered Resume Review Agent trained on best practices from FAANG recruiters and hiring managers.
 
 ## RULE 1: FACTUAL ACCURACY (MOST IMPORTANT)
 - ONLY use facts from the original resume or user corrections
