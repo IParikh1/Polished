@@ -36,6 +36,58 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* View Toggle */
+.view-toggle {
+  display: flex;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 0.25rem;
+}
+
+.view-toggle button {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.75rem;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-toggle button:hover {
+  color: #374151;
+}
+
+.view-toggle button.active {
+  background: white;
+  color: #667eea;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.updating-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #667eea;
+  background: #f0f3ff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  margin-left: 0.5rem;
+}
+
+.updating-badge .spin,
+.spin {
+  animation: spin 1s linear infinite;
 }
 
 .zoom-controls,
@@ -234,6 +286,95 @@
 
 .resume-preview-empty span {
   font-size: 0.9rem;
+}
+
+/* Hidden content for PDF generation */
+.hidden-content {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  width: 8.5in;
+}
+
+.resume-paper-hidden,
+.resume-paper {
+  background: white;
+  width: 100%;
+  max-width: 8.5in;
+  min-height: 11in;
+  padding: 0.75in;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 11pt;
+  line-height: 1.4;
+  color: #1a1a1a;
+}
+
+/* Resume typography */
+.resume-paper h1,
+.resume-paper-hidden h1 {
+  font-size: 18pt;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 0.25rem;
+  color: #000;
+}
+
+.resume-paper h2,
+.resume-paper-hidden h2 {
+  font-size: 12pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #333;
+  padding-bottom: 0.25rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+  color: #000;
+}
+
+.resume-paper h3,
+.resume-paper-hidden h3 {
+  font-size: 11pt;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  color: #000;
+}
+
+.resume-paper p,
+.resume-paper-hidden p {
+  margin: 0.25rem 0;
+  word-wrap: break-word;
+}
+
+.resume-paper ul,
+.resume-paper-hidden ul {
+  margin: 0.25rem 0;
+  padding-left: 1.25rem;
+}
+
+.resume-paper li,
+.resume-paper-hidden li {
+  margin: 0.15rem 0;
+}
+
+.resume-paper strong,
+.resume-paper-hidden strong {
+  font-weight: 700;
+}
+
+.resume-paper em,
+.resume-paper-hidden em {
+  font-style: italic;
+}
+
+/* Contact info styling */
+.resume-paper > p:first-of-type,
+.resume-paper-hidden > p:first-of-type {
+  text-align: center;
+  font-size: 10pt;
+  color: #444;
 }
 
 /* Responsive adjustments */
