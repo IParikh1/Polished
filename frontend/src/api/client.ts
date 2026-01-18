@@ -1,4 +1,9 @@
-import axios, { AxiosError } from 'axios'
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
+
+// Extend axios config to include retry count
+interface RetryConfig extends InternalAxiosRequestConfig {
+  __retryCount?: number
+}
 
 // @ts-ignore - Vite injects this at build time
 const API_URL: string = import.meta.env?.VITE_API_URL || ''
@@ -15,26 +20,23 @@ const client = axios.create({
 client.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const config = error.config
+    const config = error.config as RetryConfig | undefined
     if (!config) return Promise.reject(error)
 
-    // @ts-ignore - custom retry count
     config.__retryCount = config.__retryCount || 0
 
     // Retry on timeout or network errors (max 2 retries)
     const shouldRetry =
       (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || !error.response) &&
-      // @ts-ignore
       config.__retryCount < 2
 
     if (shouldRetry) {
-      // @ts-ignore
-      config.__retryCount += 1
-      console.log(`Retrying request (attempt ${config.__retryCount})...`)
+      const retryCount = (config.__retryCount || 0) + 1
+      config.__retryCount = retryCount
+      console.log(`Retrying request (attempt ${retryCount})...`)
 
       // Wait before retry (exponential backoff)
-      // @ts-ignore
-      await new Promise(resolve => setTimeout(resolve, 1000 * config.__retryCount))
+      await new Promise(resolve => setTimeout(resolve, 1000 * retryCount))
       return client(config)
     }
 
