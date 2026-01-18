@@ -19,71 +19,200 @@ interface Props {
 
 type ViewMode = 'original' | 'improved'
 
+// Normalize markdown content before processing to enforce correct format
+function normalizeResumeMarkdown(markdown: string): string {
+  let content = markdown
+
+  // Remove any "REWRITTEN RESUME" or similar titles that precede the actual name
+  content = content.replace(/^#\s*(REWRITTEN|IMPROVED|UPDATED|NEW)\s*(RESUME|VERSION)[\s\n]*/i, '')
+
+  // Ensure proper spacing around section headers
+  content = content.replace(/\n(##\s+)/g, '\n\n$1')
+
+  // Normalize bullet points
+  content = content.replace(/^[•*]\s+/gm, '- ')
+  content = content.replace(/^(\s+)[•*]\s+/gm, '$1- ')
+
+  return content.trim()
+}
+
+// Parse a line that contains company/date or job title/location with pipe separators
+function parseCompanyOrTitleLine(line: string): TextRun[] {
+  const runs: TextRun[] = []
+
+  // Check if line has pipe separators (e.g., "**Company** | *Date*" or "*Title* | *Location*")
+  if (line.includes('|')) {
+    const parts = line.split('|').map(p => p.trim())
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i]
+
+      // Parse bold (**text**)
+      const boldMatch = part.match(/^\*\*(.+)\*\*$/)
+      if (boldMatch) {
+        runs.push(new TextRun({ text: boldMatch[1], bold: true, size: 22 }))
+      }
+      // Parse italic (*text*)
+      else if (part.match(/^\*(.+)\*$/)) {
+        const italicMatch = part.match(/^\*(.+)\*$/)
+        if (italicMatch) {
+          runs.push(new TextRun({ text: italicMatch[1], italics: true, size: 22 }))
+        }
+      }
+      // Plain text
+      else {
+        // Also parse inline formatting within the part
+        const inlineRuns = parseInlineFormatting(part)
+        runs.push(...inlineRuns)
+      }
+
+      // Add separator between parts (except for last)
+      if (i < parts.length - 1) {
+        runs.push(new TextRun({ text: ' | ', size: 22 }))
+      }
+    }
+  } else {
+    // No pipes, parse normally
+    return parseInlineFormatting(line)
+  }
+
+  return runs
+}
+
+// Detect if a line is a company header (bold company name with optional date)
+function isCompanyLine(line: string): boolean {
+  // Company lines typically start with **CompanyName** and may have date
+  return /^\*\*[^*]+\*\*/.test(line.trim())
+}
+
+// Detect if a line is a job title (italic text, possibly with location/department)
+function isJobTitleLine(line: string): boolean {
+  // Job title lines typically start with *Title* (italic)
+  const trimmed = line.trim()
+  return /^\*[^*]+\*/.test(trimmed) && !trimmed.startsWith('**')
+}
+
 // Convert markdown to Word document paragraphs
 function markdownToDocx(markdown: string): Paragraph[] {
   const paragraphs: Paragraph[] = []
-  const lines = markdown.split('\n')
+  const normalizedMarkdown = normalizeResumeMarkdown(markdown)
+  const lines = normalizedMarkdown.split('\n')
+
+  let isFirstParagraphAfterName = false
+  let foundName = false
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
 
-    // Skip empty lines
+    // Skip empty lines but add spacing
     if (!line.trim()) {
-      paragraphs.push(new Paragraph({ text: '' }))
+      if (foundName && isFirstParagraphAfterName) {
+        // Don't add extra blank after contact info
+        isFirstParagraphAfterName = false
+        continue
+      }
+      paragraphs.push(new Paragraph({ text: '', spacing: { after: 50 } }))
       continue
     }
 
-    // H1 - Name (centered, large)
+    // H1 - Name (centered, large, with underline)
     if (line.startsWith('# ')) {
+      foundName = true
+      isFirstParagraphAfterName = true
       paragraphs.push(new Paragraph({
-        children: [new TextRun({ text: line.slice(2), bold: true, size: 36 })],
+        children: [new TextRun({ text: line.slice(2).trim(), bold: true, size: 40 })],
         heading: HeadingLevel.HEADING_1,
         alignment: AlignmentType.CENTER,
-        spacing: { after: 100 }
+        spacing: { after: 80 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '333333' } }
       }))
       continue
     }
 
-    // H2 - Section headers
+    // H2 - Section headers (with border)
     if (line.startsWith('## ')) {
       paragraphs.push(new Paragraph({
-        children: [new TextRun({ text: line.slice(3).toUpperCase(), bold: true, size: 24 })],
+        children: [new TextRun({ text: line.slice(3).toUpperCase().trim(), bold: true, size: 24 })],
         heading: HeadingLevel.HEADING_2,
-        spacing: { before: 200, after: 100 },
+        spacing: { before: 200, after: 80 },
         border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '333333' } }
       }))
       continue
     }
 
-    // H3 - Job titles
+    // H3 - Sub-section headers
     if (line.startsWith('### ')) {
       paragraphs.push(new Paragraph({
-        children: [new TextRun({ text: line.slice(4), bold: true, size: 22 })],
+        children: [new TextRun({ text: line.slice(4).trim(), bold: true, size: 22 })],
         heading: HeadingLevel.HEADING_3,
         spacing: { before: 150, after: 50 }
       }))
       continue
     }
 
+    // Contact info line (right after name, contains email/phone/location)
+    if (isFirstParagraphAfterName && (line.includes('@') || line.includes('|'))) {
+      isFirstParagraphAfterName = false
+      const children: TextRun[] = parseInlineFormatting(line)
+      paragraphs.push(new Paragraph({
+        children,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 150 }
+      }))
+      continue
+    }
+
+    isFirstParagraphAfterName = false
+
+    // Company line (bold company name with date)
+    if (isCompanyLine(line)) {
+      const children: TextRun[] = parseCompanyOrTitleLine(line)
+      paragraphs.push(new Paragraph({
+        children,
+        spacing: { before: 150, after: 30 }
+      }))
+      continue
+    }
+
+    // Job title line (italic title with location/department)
+    if (isJobTitleLine(line)) {
+      const children: TextRun[] = parseCompanyOrTitleLine(line)
+      paragraphs.push(new Paragraph({
+        children,
+        spacing: { before: 30, after: 50 }
+      }))
+      continue
+    }
+
     // Bullet points
-    if (line.startsWith('- ') || line.startsWith('• ')) {
+    if (line.startsWith('- ') || line.startsWith('* ')) {
       const bulletText = line.slice(2)
       const children: TextRun[] = parseInlineFormatting(bulletText)
       paragraphs.push(new Paragraph({
         children,
         bullet: { level: 0 },
-        spacing: { after: 50 }
+        spacing: { after: 40 }
       }))
       continue
     }
 
     // Sub-bullets (indented)
-    if (line.startsWith('  - ') || line.startsWith('  • ')) {
-      const bulletText = line.slice(4)
+    if (line.match(/^(\s{2,}|\t)[-*]\s/)) {
+      const bulletText = line.replace(/^(\s{2,}|\t)[-*]\s/, '')
       const children: TextRun[] = parseInlineFormatting(bulletText)
       paragraphs.push(new Paragraph({
         children,
         bullet: { level: 1 },
+        spacing: { after: 40 }
+      }))
+      continue
+    }
+
+    // Skills line (bold category followed by colon)
+    if (line.match(/^\*\*[^:]+:\*\*/)) {
+      const children: TextRun[] = parseInlineFormatting(line)
+      paragraphs.push(new Paragraph({
+        children,
         spacing: { after: 50 }
       }))
       continue
@@ -401,7 +530,7 @@ function ResumePreview({ pdfFile, resumeContent, isUpdating }: Props) {
         {/* Improved Content View - Rendered Markdown */}
         {showImprovedContent && (
           <div className="resume-paper" ref={improvedContentRef}>
-            <ReactMarkdown>{resumeContent}</ReactMarkdown>
+            <ReactMarkdown>{normalizeResumeMarkdown(resumeContent || '')}</ReactMarkdown>
           </div>
         )}
 

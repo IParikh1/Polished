@@ -352,11 +352,11 @@
   width: 100%;
   max-width: 8.5in;
   min-height: 11in;
-  padding: 0.75in;
+  padding: 0.6in 0.75in;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 11pt;
-  line-height: 1.4;
+  font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+  font-size: 10.5pt;
+  line-height: 1.35;
   color: #1a1a1a;
 }
 
@@ -379,69 +379,99 @@
   widows: 2;
 }
 
-/* Resume typography */
+/* Resume typography - Name */
 .resume-paper h1,
 .resume-paper-hidden h1 {
-  font-size: 18pt;
+  font-size: 22pt;
   font-weight: 700;
   text-align: center;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.1rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1.5px solid #333;
   color: #000;
 }
 
+/* Section headers */
 .resume-paper h2,
 .resume-paper-hidden h2 {
-  font-size: 12pt;
+  font-size: 11pt;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 2px solid #333;
-  padding-bottom: 0.25rem;
-  margin-top: 0.75rem;
-  margin-bottom: 0.5rem;
+  border-bottom: 1.5px solid #333;
+  padding-bottom: 0.15rem;
+  margin-top: 0.6rem;
+  margin-bottom: 0.35rem;
   color: #000;
 }
 
+/* Sub-headers (rarely used) */
 .resume-paper h3,
 .resume-paper-hidden h3 {
-  font-size: 11pt;
+  font-size: 10.5pt;
   font-weight: 700;
-  margin-top: 0.5rem;
-  margin-bottom: 0.25rem;
+  margin-top: 0.4rem;
+  margin-bottom: 0.2rem;
   color: #000;
 }
 
+/* Paragraphs - includes contact info, company lines, job titles */
 .resume-paper p,
 .resume-paper-hidden p {
-  margin: 0.25rem 0;
+  margin: 0.15rem 0;
   word-wrap: break-word;
 }
 
+/* Contact info - first paragraph after h1 */
+.resume-paper h1 + p,
+.resume-paper-hidden h1 + p {
+  text-align: center;
+  font-size: 10pt;
+  color: #333;
+  margin-bottom: 0.4rem;
+}
+
+/* Company name line styling */
+.resume-paper p strong:first-child,
+.resume-paper-hidden p strong:first-child {
+  font-weight: 700;
+}
+
+/* Job title styling - italic paragraphs */
+.resume-paper p em:first-child,
+.resume-paper-hidden p em:first-child {
+  font-style: italic;
+}
+
+/* Bullet lists */
 .resume-paper ul,
 .resume-paper-hidden ul {
-  margin: 0.25rem 0;
-  padding-left: 1.25rem;
+  margin: 0.15rem 0;
+  padding-left: 1.1rem;
   list-style-type: disc;
 }
 
 .resume-paper li,
 .resume-paper-hidden li {
-  margin: 0.15rem 0;
+  margin: 0.1rem 0;
   display: list-item;
   page-break-inside: avoid;
+  font-size: 10.5pt;
+  line-height: 1.3;
 }
 
 /* Nested lists (sub-bullets) */
 .resume-paper ul ul,
 .resume-paper-hidden ul ul {
-  margin: 0.1rem 0;
-  padding-left: 1rem;
+  margin: 0.05rem 0;
+  padding-left: 0.9rem;
   list-style-type: circle;
 }
 
 .resume-paper ul ul li,
 .resume-paper-hidden ul ul li {
-  margin: 0.1rem 0;
+  margin: 0.05rem 0;
+  font-size: 10pt;
 }
 
 .resume-paper strong,
@@ -454,12 +484,16 @@
   font-style: italic;
 }
 
-/* Contact info styling */
-.resume-paper > p:first-of-type,
-.resume-paper-hidden > p:first-of-type {
-  text-align: center;
-  font-size: 10pt;
-  color: #444;
+/* Skills section styling */
+.resume-paper h2 + p,
+.resume-paper-hidden h2 + p {
+  margin-top: 0.2rem;
+}
+
+/* Ensure proper spacing for multiple skill lines */
+.resume-paper p + p strong:first-child,
+.resume-paper-hidden p + p strong:first-child {
+  margin-top: 0.1rem;
 }
 
 /* Responsive adjustments */

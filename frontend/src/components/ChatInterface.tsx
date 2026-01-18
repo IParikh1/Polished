@@ -16,18 +16,28 @@ interface Props {
   onResumeUpdate?: (content: string) => void
 }
 
+// Normalize resume content to remove unwanted titles like "REWRITTEN RESUME"
+function normalizeResumeContent(content: string): string {
+  // Remove any "REWRITTEN RESUME" or similar titles that precede the actual name
+  let normalized = content.replace(/^#\s*(REWRITTEN|IMPROVED|UPDATED|NEW)\s*(RESUME|VERSION)[\s\n]*/i, '')
+  return normalized.trim()
+}
+
 // Detect if a message contains an improved/rewritten resume
 function detectAndExtractResume(content: string): { resumeContent: string | null; summaryContent: string } {
   // Look for patterns that indicate a full resume rewrite
   const resumePatterns = [
     /^#\s+[A-Z][A-Za-z\s]+\n\*\*Email/m,
     /^#\s+[A-Z][A-Za-z\s]+\n.*@.*\.(com|me|io|org|net)/m,
+    /^#\s+[A-Z][A-Za-z\s]+\n[^#]*\|/m, // Name followed by contact with pipes
     /## PROFESSIONAL EXPERIENCE/i,
     /## WORK EXPERIENCE/i,
     /## EXPERIENCE\n/i,
     /## TECHNICAL SKILLS/i,
-    /## SKILLS\n/i,
+    /## SKILLS\s*((&|AND|,)\s*(CERTIFICATIONS?|INTERESTS?))?/i,
     /## EDUCATION\n/i,
+    /## CERTIFICATIONS/i,
+    /\*\*[A-Z][A-Za-z\s&]+\*\*\s*\|\s*\*[^*]+\*/m, // Company | Date pattern
   ]
 
   // Check if content looks like a resume (has multiple resume sections)
@@ -49,8 +59,12 @@ function detectAndExtractResume(content: string): { resumeContent: string | null
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
 
-      // Find start of resume - first # heading that looks like a name
+      // Find start of resume - first # heading that looks like a name (not "REWRITTEN RESUME")
       if (resumeStart === -1 && /^#\s+[A-Z]/.test(line)) {
+        // Skip titles like "REWRITTEN RESUME", "IMPROVED RESUME", etc.
+        if (/^#\s*(REWRITTEN|IMPROVED|UPDATED|NEW)\s*(RESUME|VERSION)/i.test(line)) {
+          continue
+        }
         resumeStart = i
         // Check if there's content before the resume (summary/intro)
         if (i > 0) {
@@ -59,7 +73,7 @@ function detectAndExtractResume(content: string): { resumeContent: string | null
       }
 
       // Find end of resume - look for improvement notes section
-      if (resumeStart !== -1 && /^##\s*(KEY IMPROVEMENTS|IMPROVEMENTS MADE|CHANGES MADE|NOTES|SUMMARY OF CHANGES|WHAT I CHANGED)/i.test(line)) {
+      if (resumeStart !== -1 && /^##\s*(KEY IMPROVEMENTS|IMPROVEMENTS MADE|CHANGES MADE|NOTES|SUMMARY OF CHANGES|WHAT I CHANGED|CHANGES|IMPROVEMENTS)/i.test(line)) {
         resumeEnd = i
         summaryStart = i
         break
@@ -67,14 +81,22 @@ function detectAndExtractResume(content: string): { resumeContent: string | null
     }
 
     if (resumeStart !== -1) {
-      const resumeContent = lines.slice(resumeStart, resumeEnd).join('\n').trim()
+      let resumeContent = lines.slice(resumeStart, resumeEnd).join('\n').trim()
+
+      // Normalize the resume content to remove any unwanted titles
+      resumeContent = normalizeResumeContent(resumeContent)
 
       // Build summary content (intro + changes section)
       let summaryParts: string[] = []
 
       // Add any intro text before the resume
       if (summaryEnd > 0) {
-        summaryParts.push(lines.slice(0, summaryEnd).join('\n').trim())
+        const introText = lines.slice(0, summaryEnd).join('\n').trim()
+        // Filter out the "REWRITTEN RESUME" line from intro
+        const filteredIntro = introText.replace(/^#\s*(REWRITTEN|IMPROVED|UPDATED|NEW)\s*(RESUME|VERSION)[\s\n]*/i, '').trim()
+        if (filteredIntro) {
+          summaryParts.push(filteredIntro)
+        }
       }
 
       // Add any changes/notes section after the resume
@@ -85,7 +107,7 @@ function detectAndExtractResume(content: string): { resumeContent: string | null
       // If no summary found, create a default one
       const summaryContent = summaryParts.length > 0
         ? summaryParts.join('\n\n')
-        : "✅ **Resume Updated!** I've rewritten your resume with the improvements. Check the preview panel to see the changes, and click 'Download PDF' when you're ready."
+        : "**Resume Updated!** I've rewritten your resume with the improvements. Check the preview panel to see the changes, and click 'Download PDF' when you're ready."
 
       return { resumeContent, summaryContent }
     }
