@@ -310,6 +310,25 @@
   color: #1a1a1a;
 }
 
+/* Prevent page break issues */
+.resume-paper h1,
+.resume-paper h2,
+.resume-paper h3,
+.resume-paper-hidden h1,
+.resume-paper-hidden h2,
+.resume-paper-hidden h3 {
+  page-break-after: avoid;
+}
+
+.resume-paper p,
+.resume-paper li,
+.resume-paper-hidden p,
+.resume-paper-hidden li {
+  page-break-inside: avoid;
+  orphans: 2;
+  widows: 2;
+}
+
 /* Resume typography */
 .resume-paper h1,
 .resume-paper-hidden h1 {
@@ -352,11 +371,27 @@
 .resume-paper-hidden ul {
   margin: 0.25rem 0;
   padding-left: 1.25rem;
+  list-style-type: disc;
 }
 
 .resume-paper li,
 .resume-paper-hidden li {
   margin: 0.15rem 0;
+  display: list-item;
+  page-break-inside: avoid;
+}
+
+/* Nested lists (sub-bullets) */
+.resume-paper ul ul,
+.resume-paper-hidden ul ul {
+  margin: 0.1rem 0;
+  padding-left: 1rem;
+  list-style-type: circle;
+}
+
+.resume-paper ul ul li,
+.resume-paper-hidden ul ul li {
+  margin: 0.1rem 0;
 }
 
 .resume-paper strong,
