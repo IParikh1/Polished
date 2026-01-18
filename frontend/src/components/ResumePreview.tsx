@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useRef } from 'react'
 import { Download, FileText, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCw, Eye } from 'lucide-react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import ReactMarkdown from 'react-markdown'
@@ -24,9 +24,15 @@ function ResumePreview({ pdfFile, resumeContent, isUpdating }: Props) {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('original')
-  const [improvedPdfBlob, setImprovedPdfBlob] = useState<Blob | null>(null)
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false)
+  const [isDownloading, setIsDownloading] = useState<boolean>(false)
   const improvedContentRef = useRef<HTMLDivElement>(null)
+
+  // Auto-switch to improved view when new content arrives
+  React.useEffect(() => {
+    if (resumeContent) {
+      setViewMode('improved')
+    }
+  }, [resumeContent])
 
   // Create a URL for the original PDF file
   const originalPdfUrl = useMemo(() => {
@@ -35,66 +41,6 @@ function ResumePreview({ pdfFile, resumeContent, isUpdating }: Props) {
     }
     return null
   }, [pdfFile])
-
-  // Create a URL for the improved PDF
-  const improvedPdfUrl = useMemo(() => {
-    if (improvedPdfBlob) {
-      return URL.createObjectURL(improvedPdfBlob)
-    }
-    return null
-  }, [improvedPdfBlob])
-
-  // Determine which PDF to show
-  const activePdfUrl = viewMode === 'improved' && improvedPdfUrl ? improvedPdfUrl : originalPdfUrl
-
-  // Generate PDF from improved content when it changes
-  useEffect(() => {
-    if (resumeContent && viewMode === 'improved') {
-      generateImprovedPdf()
-    }
-  }, [resumeContent, viewMode])
-
-  // Auto-switch to improved view when new content arrives
-  useEffect(() => {
-    if (resumeContent) {
-      setViewMode('improved')
-    }
-  }, [resumeContent])
-
-  const generateImprovedPdf = async () => {
-    if (!resumeContent || !improvedContentRef.current) return
-
-    setIsGeneratingPdf(true)
-    try {
-      const html2pdf = (await import('html2pdf.js')).default
-
-      const element = improvedContentRef.current
-      const opt = {
-        margin: [0.5, 0.5, 0.5, 0.5] as [number, number, number, number],
-        filename: 'improved-resume.pdf',
-        image: { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          letterRendering: true
-        },
-        jsPDF: {
-          unit: 'in' as const,
-          format: 'letter' as const,
-          orientation: 'portrait' as const
-        }
-      }
-
-      const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob')
-      setImprovedPdfBlob(pdfBlob)
-      setPageNumber(1)
-    } catch (err) {
-      console.error('PDF generation error:', err)
-      setError('Failed to generate improved PDF')
-    } finally {
-      setIsGeneratingPdf(false)
-    }
-  }
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages)
@@ -114,30 +60,24 @@ function ResumePreview({ pdfFile, resumeContent, isUpdating }: Props) {
   const zoomOut = () => setScale(prev => Math.max(prev - 0.2, 0.5))
 
   const handleDownload = async () => {
-    if (viewMode === 'improved' && resumeContent) {
-      // Download improved version
-      if (improvedPdfBlob) {
-        const url = URL.createObjectURL(improvedPdfBlob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = 'improved-resume.pdf'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      } else {
-        // Generate and download
-        await generateImprovedPdf()
-        if (improvedPdfBlob) {
-          const url = URL.createObjectURL(improvedPdfBlob)
-          const a = document.createElement('a')
-          a.href = url
-          a.download = 'improved-resume.pdf'
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-          URL.revokeObjectURL(url)
+    if (viewMode === 'improved' && resumeContent && improvedContentRef.current) {
+      // Generate and download PDF from improved content
+      setIsDownloading(true)
+      try {
+        const html2pdf = (await import('html2pdf.js')).default
+        const opt = {
+          margin: [0.5, 0.5, 0.5, 0.5] as [number, number, number, number],
+          filename: 'improved-resume.pdf',
+          image: { type: 'jpeg' as const, quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+          jsPDF: { unit: 'in' as const, format: 'letter' as const, orientation: 'portrait' as const }
         }
+        await html2pdf().set(opt).from(improvedContentRef.current).save()
+      } catch (err) {
+        console.error('PDF download error:', err)
+        alert('Failed to download PDF. Please try again.')
+      } finally {
+        setIsDownloading(false)
       }
     } else if (pdfFile) {
       // Download original
@@ -173,7 +113,8 @@ function ResumePreview({ pdfFile, resumeContent, isUpdating }: Props) {
 
   const isPdf = pdfFile.type === 'application/pdf' || pdfFile.name.toLowerCase().endsWith('.pdf')
   const hasImprovedContent = !!resumeContent
-  const showPdfView = isPdf && (viewMode === 'original' || (viewMode === 'improved' && improvedPdfBlob))
+  const showOriginalPdf = viewMode === 'original' && isPdf
+  const showImprovedContent = viewMode === 'improved' && hasImprovedContent
 
   return (
     <div className="resume-preview-container">
@@ -206,7 +147,7 @@ function ResumePreview({ pdfFile, resumeContent, isUpdating }: Props) {
               </button>
             </div>
           )}
-          {showPdfView && numPages > 0 && (
+          {showOriginalPdf && numPages > 0 && (
             <>
               <div className="zoom-controls">
                 <button onClick={zoomOut} title="Zoom out" disabled={scale <= 0.5}>
@@ -230,37 +171,16 @@ function ResumePreview({ pdfFile, resumeContent, isUpdating }: Props) {
               )}
             </>
           )}
-          <button className="download-btn" onClick={handleDownload} disabled={isGeneratingPdf}>
+          <button className="download-btn" onClick={handleDownload} disabled={isDownloading}>
             <Download size={18} />
-            {isGeneratingPdf ? 'Generating...' : 'Download PDF'}
+            {isDownloading ? 'Generating...' : 'Download PDF'}
           </button>
         </div>
       </div>
 
       <div className="resume-preview-scroll">
-        {/* Hidden div for PDF generation */}
-        {resumeContent && (
-          <div className="hidden-content" ref={improvedContentRef}>
-            <div className="resume-paper-hidden">
-              <ReactMarkdown>{resumeContent}</ReactMarkdown>
-            </div>
-          </div>
-        )}
-
-        {isGeneratingPdf && viewMode === 'improved' && (
-          <div className="pdf-loading">
-            <div className="loading-spinner" />
-            <p>Generating improved resume...</p>
-          </div>
-        )}
-
-        {viewMode === 'improved' && !improvedPdfBlob && !isGeneratingPdf && resumeContent && (
-          <div className="resume-paper">
-            <ReactMarkdown>{resumeContent}</ReactMarkdown>
-          </div>
-        )}
-
-        {showPdfView && !isGeneratingPdf && (
+        {/* Original PDF View */}
+        {showOriginalPdf && (
           <div className="pdf-container">
             {isLoading && (
               <div className="pdf-loading">
@@ -274,11 +194,10 @@ function ResumePreview({ pdfFile, resumeContent, isUpdating }: Props) {
               </div>
             )}
             <Document
-              file={activePdfUrl}
+              file={originalPdfUrl}
               onLoadSuccess={onDocumentLoadSuccess}
               onLoadError={onDocumentLoadError}
               loading=""
-              key={activePdfUrl}
             >
               <Page
                 pageNumber={pageNumber}
@@ -290,6 +209,14 @@ function ResumePreview({ pdfFile, resumeContent, isUpdating }: Props) {
           </div>
         )}
 
+        {/* Improved Content View - Rendered Markdown */}
+        {showImprovedContent && (
+          <div className="resume-paper" ref={improvedContentRef}>
+            <ReactMarkdown>{resumeContent}</ReactMarkdown>
+          </div>
+        )}
+
+        {/* Non-PDF original file */}
         {!isPdf && viewMode === 'original' && (
           <div className="non-pdf-preview">
             <FileText size={48} />

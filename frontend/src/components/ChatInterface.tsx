@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Send, RefreshCw, User, Bot } from 'lucide-react'
+import { Send, RefreshCw, User, Bot, FileText } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import client from '../api/client'
 import './ChatInterface.css'
@@ -17,14 +17,16 @@ interface Props {
 }
 
 // Detect if a message contains an improved/rewritten resume
-function detectResumeContent(content: string): string | null {
+function detectAndExtractResume(content: string): { resumeContent: string | null; summaryContent: string } {
   // Look for patterns that indicate a full resume rewrite
   const resumePatterns = [
-    /^#\s+[A-Z][A-Za-z\s]+\n\*\*Email/m,  // # NAME \n **Email
-    /^#\s+[A-Z][A-Za-z\s]+\n.*@.*\.(com|me|io)/m,  // # NAME with email
+    /^#\s+[A-Z][A-Za-z\s]+\n\*\*Email/m,
+    /^#\s+[A-Z][A-Za-z\s]+\n.*@.*\.(com|me|io|org|net)/m,
     /## PROFESSIONAL EXPERIENCE/i,
     /## WORK EXPERIENCE/i,
+    /## EXPERIENCE\n/i,
     /## TECHNICAL SKILLS/i,
+    /## SKILLS\n/i,
     /## EDUCATION\n/i,
   ]
 
@@ -36,32 +38,60 @@ function detectResumeContent(content: string): string | null {
     }
   }
 
-  // If it has 3+ resume-like patterns, it's probably a resume
-  if (matchCount >= 3) {
-    // Extract the resume portion (from the first heading to the end or next non-resume section)
+  // If it has 2+ resume-like patterns, it's probably a resume
+  if (matchCount >= 2) {
     const lines = content.split('\n')
     let resumeStart = -1
     let resumeEnd = lines.length
+    let summaryStart = -1
+    let summaryEnd = -1
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
-      // Find start - first # heading that looks like a name
+
+      // Find start of resume - first # heading that looks like a name
       if (resumeStart === -1 && /^#\s+[A-Z]/.test(line)) {
         resumeStart = i
+        // Check if there's content before the resume (summary/intro)
+        if (i > 0) {
+          summaryEnd = i
+        }
       }
-      // Find end - look for improvement notes section
-      if (resumeStart !== -1 && /^##\s+(KEY IMPROVEMENTS|IMPROVEMENTS MADE|CHANGES MADE|NOTES:)/i.test(line)) {
+
+      // Find end of resume - look for improvement notes section
+      if (resumeStart !== -1 && /^##\s*(KEY IMPROVEMENTS|IMPROVEMENTS MADE|CHANGES MADE|NOTES|SUMMARY OF CHANGES|WHAT I CHANGED)/i.test(line)) {
         resumeEnd = i
+        summaryStart = i
         break
       }
     }
 
     if (resumeStart !== -1) {
-      return lines.slice(resumeStart, resumeEnd).join('\n').trim()
+      const resumeContent = lines.slice(resumeStart, resumeEnd).join('\n').trim()
+
+      // Build summary content (intro + changes section)
+      let summaryParts: string[] = []
+
+      // Add any intro text before the resume
+      if (summaryEnd > 0) {
+        summaryParts.push(lines.slice(0, summaryEnd).join('\n').trim())
+      }
+
+      // Add any changes/notes section after the resume
+      if (summaryStart !== -1) {
+        summaryParts.push(lines.slice(summaryStart).join('\n').trim())
+      }
+
+      // If no summary found, create a default one
+      const summaryContent = summaryParts.length > 0
+        ? summaryParts.join('\n\n')
+        : "✅ **Resume Updated!** I've rewritten your resume with the improvements. Check the preview panel to see the changes, and click 'Download PDF' when you're ready."
+
+      return { resumeContent, summaryContent }
     }
   }
 
-  return null
+  return { resumeContent: null, summaryContent: content }
 }
 
 function ChatInterface({ sessionId, initialAnalysis, onNewSession, onResumeUpdate }: Props) {
@@ -95,10 +125,14 @@ function ChatInterface({ sessionId, initialAnalysis, onNewSession, onResumeUpdat
       })
 
       const assistantResponse = response.data.response
-      setMessages(prev => [...prev, { role: 'assistant', content: assistantResponse }])
 
       // Check if this response contains an improved resume
-      const resumeContent = detectResumeContent(assistantResponse)
+      const { resumeContent, summaryContent } = detectAndExtractResume(assistantResponse)
+
+      // Show only summary in chat (not the full resume)
+      setMessages(prev => [...prev, { role: 'assistant', content: summaryContent }])
+
+      // Send resume content to preview if found
       if (resumeContent && onResumeUpdate) {
         onResumeUpdate(resumeContent)
       }
@@ -120,10 +154,10 @@ function ChatInterface({ sessionId, initialAnalysis, onNewSession, onResumeUpdat
   }
 
   const suggestedQuestions = [
-    "Improve my resume with better formatting",
-    "Rewrite my resume for ATS optimization",
-    "What skills should I highlight for FAANG?",
-    "Can you rewrite my experience section?"
+    "Rewrite my full resume with ATS optimization",
+    "Improve my bullet points with better metrics",
+    "What are the top 3 things I should fix?",
+    "Make my experience section more impactful"
   ]
 
   return (
