@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sparkles, ArrowLeft } from 'lucide-react'
 import ResumeUpload from '../components/ResumeUpload'
 import ChatInterface from '../components/ChatInterface'
 import ResumePreview from '../components/ResumePreview'
+import { startKeepAlive, stopKeepAlive } from '../api/client'
 import './AppPage.css'
 
 interface SessionData {
@@ -18,6 +19,16 @@ function AppPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
 
+  // Start keep-alive when session is active to prevent server cold starts
+  useEffect(() => {
+    if (session) {
+      startKeepAlive()
+    }
+    return () => {
+      stopKeepAlive()
+    }
+  }, [session])
+
   const handleUploadComplete = (sessionId: string, initialAnalysis: string, file: File) => {
     setSession({ sessionId, initialAnalysis })
     setPdfFile(file)
@@ -28,6 +39,7 @@ function AppPage() {
     setSession(null)
     setPdfFile(null)
     setResumeContent('')
+    stopKeepAlive()
   }
 
   const handleResumeUpdate = (content: string) => {

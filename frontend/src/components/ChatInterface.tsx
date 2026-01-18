@@ -136,10 +136,21 @@ function ChatInterface({ sessionId, initialAnalysis, onNewSession, onResumeUpdat
       if (resumeContent && onResumeUpdate) {
         onResumeUpdate(resumeContent)
       }
-    } catch (err) {
+    } catch (err: any) {
+      const isTimeout = err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK'
+      const isSessionExpired = err.response?.status === 404
+
+      let errorMessage = 'I apologize, but I encountered an error. Please try again.'
+
+      if (isTimeout) {
+        errorMessage = 'The request timed out. The server may be waking up from sleep. Please try sending your message again.'
+      } else if (isSessionExpired) {
+        errorMessage = 'Your session has expired. Please click "New Resume" to start a new session with your resume.'
+      }
+
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'I apologize, but I encountered an error. Please try again.'
+        content: errorMessage
       }])
     } finally {
       setIsLoading(false)

@@ -239,6 +239,32 @@ async def get_session_info(session_id: str):
     return info
 
 
+@router.post("/session/{session_id}/ping")
+async def ping_session(session_id: str):
+    """
+    Ping to refresh session TTL and verify it's still active.
+    Use this to keep sessions alive during long thinking pauses.
+    Returns session status and remaining TTL.
+    """
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found or expired. Please upload your resume again."
+        )
+
+    # get_session already refreshes TTL via sliding expiration
+    ttl = session_store.get_ttl(session_id)
+
+    return {
+        "status": "active",
+        "session_id": session_id,
+        "ttl_seconds": ttl,
+        "ttl_hours": round(ttl / 3600, 1) if ttl else None,
+        "message_count": len(session.get("messages", []))
+    }
+
+
 @router.post("/improve")
 async def suggest_improvements(
     session_id: str,
