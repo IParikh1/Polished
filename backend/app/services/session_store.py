@@ -8,6 +8,15 @@ import logging
 import os
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
+from zoneinfo import ZoneInfo
+
+# Use EST timezone for all timestamps
+EST = ZoneInfo("America/New_York")
+
+
+def now_est() -> datetime:
+    """Get current datetime in EST timezone."""
+    return datetime.now(EST)
 
 # Gracefully handle missing redis dependency
 try:
@@ -56,8 +65,8 @@ class SessionStore:
             "messages": [],
             "corrections": [],
             "token_count": 0,
-            "created_at": datetime.utcnow().isoformat(),
-            "expires_at": (datetime.utcnow() + timedelta(hours=self.TTL_HOURS)).isoformat()
+            "created_at": now_est().isoformat(),
+            "expires_at": (now_est() + timedelta(hours=self.TTL_HOURS)).isoformat()
         }
 
         if self.redis:
@@ -106,7 +115,7 @@ class SessionStore:
             "role": role,
             "content": content,
             "tokens": tokens,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": now_est().isoformat()
         })
         session["token_count"] += tokens
 

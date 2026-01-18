@@ -1,17 +1,33 @@
 import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import APP_NAME, APP_VERSION, DEBUG, ALLOWED_ORIGINS
+from app.core.config import APP_NAME, APP_VERSION, DEBUG, ALLOWED_ORIGINS, TIMEZONE
 from app.api.routes import router
 from app.api.billing_routes import router as billing_router
 from app.api.auth_routes import router as auth_router
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG if DEBUG else logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+# Configure EST timezone for logging
+TZ = ZoneInfo(TIMEZONE)
+
+
+class ESTFormatter(logging.Formatter):
+    """Custom formatter that uses EST timezone for timestamps."""
+
+    def formatTime(self, record, datefmt=None):
+        dt = datetime.fromtimestamp(record.created, tz=TZ)
+        if datefmt:
+            return dt.strftime(datefmt)
+        return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+
+# Configure logging with EST timezone
+handler = logging.StreamHandler()
+handler.setFormatter(ESTFormatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+logging.root.handlers = [handler]
+logging.root.setLevel(logging.DEBUG if DEBUG else logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Create FastAPI app
@@ -75,6 +91,7 @@ async def root():
             },
             "session": {
                 "get": "GET /api/session/{id} - Get session info",
+                "ping": "POST /api/session/{id}/ping - Keep session alive",
                 "delete": "DELETE /api/session/{id} - Delete session data",
                 "usage": "GET /api/usage - Get rate limit usage"
             },
@@ -88,7 +105,12 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    now = datetime.now(TZ)
+    return {
+        "status": "healthy",
+        "timestamp": now.isoformat(),
+        "timezone": TIMEZONE
+    }
 
 
 if __name__ == "__main__":

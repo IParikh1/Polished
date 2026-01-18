@@ -52,6 +52,7 @@ COGNITO_JWKS_URL = f"{COGNITO_ISSUER}/.well-known/jwks.json" if COGNITO_ISSUER e
 APP_NAME = "Polished"
 APP_VERSION = "1.2.0"
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+TIMEZONE = os.getenv("TIMEZONE", "America/New_York")  # EST by default
 
 # Frontend URL (for Cognito and Stripe redirects)
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")

@@ -5,14 +5,35 @@ Supports both standard and streaming responses.
 """
 
 import logging
+from datetime import datetime
 from typing import List, Optional, Generator
+from zoneinfo import ZoneInfo
 from app.services.llm_service import chat_completion, stream_completion, stream_completion_with_usage
 from app.models.schemas import Message, MessageRole
 
 logger = logging.getLogger(__name__)
 
-# Hybrid prompt: adapts to user request type while maintaining core rules
-EXPERT_SYSTEM_PROMPT = """You are a Resume Review Agent trained on FAANG hiring practices.
+# Timezone for date/time
+EST = ZoneInfo("America/New_York")
+
+
+def get_current_datetime_est() -> str:
+    """Get current date and time in EST timezone."""
+    now = datetime.now(EST)
+    return now.strftime("%B %d, %Y at %I:%M %p EST")
+
+
+def get_current_date_est() -> str:
+    """Get current date in EST timezone (for resume context)."""
+    now = datetime.now(EST)
+    return now.strftime("%B %Y")
+
+
+# Base system prompt template (date injected dynamically)
+EXPERT_SYSTEM_PROMPT_TEMPLATE = """You are a Resume Review Agent trained on FAANG hiring practices.
+
+**Current Date: {current_date}**
+Use this date for all timeline references. "Present" means {current_month_year}.
 
 ## ABSOLUTE RULES (ALWAYS APPLY)
 
@@ -96,11 +117,22 @@ Good STAR questions:
 - 1 page for <10 yrs exp, 2 pages max"""
 
 
+def get_system_prompt() -> str:
+    """Generate system prompt with current date injected."""
+    now = datetime.now(EST)
+    return EXPERT_SYSTEM_PROMPT_TEMPLATE.format(
+        current_date=now.strftime("%B %d, %Y"),
+        current_month_year=now.strftime("%B %Y")
+    )
+
+
 class ResumeAgent:
     """Expert Resume Review Agent."""
 
-    def __init__(self):
-        self.system_prompt = EXPERT_SYSTEM_PROMPT
+    @property
+    def system_prompt(self) -> str:
+        """Get system prompt with current date (regenerated each call)."""
+        return get_system_prompt()
 
     def analyze_resume(self, resume_text: str) -> str:
         """Provide initial comprehensive analysis of a resume."""
