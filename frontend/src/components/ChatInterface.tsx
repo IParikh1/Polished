@@ -40,6 +40,18 @@ function detectAndExtractResume(content: string): { resumeContent: string | null
     /\*\*[A-Z][A-Za-z\s&]+\*\*\s*\|\s*\*[^*]+\*/m, // Company | Date pattern
   ]
 
+  // Patterns that indicate the END of resume content (follow-up questions/commentary)
+  const endOfResumePatterns = [
+    /^##\s*(KEY IMPROVEMENTS|IMPROVEMENTS MADE|CHANGES MADE|NOTES|SUMMARY OF CHANGES|WHAT I CHANGED|CHANGES|IMPROVEMENTS)/i,
+    /^I've (improved|rewritten|updated|revised|enhanced|optimized|tightened)/i,
+    /^I have (improved|rewritten|updated|revised|enhanced|optimized|tightened)/i,
+    /^To add (even )?stronger (metrics|impact)/i,
+    /^(Here are |Would you like|Let me know|If you|Can you tell me)/i,
+    /^\d+\.\s+\*?\*?For (the|your)\b/i, // Numbered questions like "1. For the technology rollouts:"
+    /^---+\s*$/,  // Horizontal rule separator
+    /^\*?Note:/i, // Note: at start of line (but not in resume content)
+  ]
+
   // Check if content looks like a resume (has multiple resume sections)
   let matchCount = 0
   for (const pattern of resumePatterns) {
@@ -72,11 +84,17 @@ function detectAndExtractResume(content: string): { resumeContent: string | null
         }
       }
 
-      // Find end of resume - look for improvement notes section
-      if (resumeStart !== -1 && /^##\s*(KEY IMPROVEMENTS|IMPROVEMENTS MADE|CHANGES MADE|NOTES|SUMMARY OF CHANGES|WHAT I CHANGED|CHANGES|IMPROVEMENTS)/i.test(line)) {
-        resumeEnd = i
-        summaryStart = i
-        break
+      // Find end of resume - look for any end-of-resume pattern
+      if (resumeStart !== -1) {
+        const trimmedLine = line.trim()
+        for (const endPattern of endOfResumePatterns) {
+          if (endPattern.test(trimmedLine)) {
+            resumeEnd = i
+            summaryStart = i
+            break
+          }
+        }
+        if (summaryStart !== -1) break
       }
     }
 
