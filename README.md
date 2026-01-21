@@ -1,133 +1,100 @@
-# Polished
+# Polished - Resume Ranking System
 
-AI-powered resume review agent with 20 years of tech hiring expertise.
-
-![Polished](https://img.shields.io/badge/Powered%20by-Polished%20AI-667eea)
-![License](https://img.shields.io/badge/license-MIT-green)
-
-## Overview
-
-Polished is an intelligent resume review tool that provides expert feedback, ATS optimization, and professional rewrites. Built with React and FastAPI, it leverages Claude AI to deliver insights from 20+ years of simulated hiring experience at top tech companies.
+A scalable resume sorting and ranking platform with tiered features for recruiters and agencies.
 
 ## Features
 
-- **Expert Analysis** - AI trained on insights from reviewing 50,000+ resumes
-- **ATS Optimization** - Ensure your resume passes Applicant Tracking Systems
-- **Interactive Chat** - Get specific advice, rewrites, and improvements through natural conversation
-- **Live Preview** - Side-by-side resume preview that updates in real-time
-- **PDF Export** - Download your polished resume as a professional PDF
-- **Factual Accuracy** - AI never invents details, only enhances what you provide
+### Core Service (Free Tier)
+- Batch upload of resumes (PDF, DOCX, TXT) - up to 100 per batch
+- Automatic text extraction and parsing
+- Rule-based scoring across 6 categories
+- Automatic ranking by overall score
+- CSV/JSON export
+
+### Premium Add-ons
+1. **JD Matching** ($29/mo) - Match resumes against job descriptions with skill gap analysis
+2. **Deep Analysis** ($99/mo) - AI-powered strengths/weaknesses assessment
+3. **Resume Consulting** ($499/mo) - Interactive AI chat for resume improvement
+
+### Revenue System
+- Placement tracking with $250 per verified placement
+- Verification workflow (pending → verified → paid)
 
 ## Tech Stack
 
-**Frontend**
-- React 18 + TypeScript
-- Vite
-- React Router
-- Axios
-- Lucide React (icons)
-- html2pdf.js
-
-**Backend**
-- FastAPI
-- Python 3.9+
-- Anthropic Claude API
-- PyPDF2, python-docx (resume parsing)
+- **Backend**: Python 3.11+ / FastAPI
+- **Frontend**: React 18 / TypeScript / Vite / Tailwind CSS
+- **Storage**: AWS DynamoDB + S3
+- **Cache**: Redis
+- **Deployment**: Railway (backend) + Vercel (frontend)
 
 ## Getting Started
 
-### Prerequisites
+### Backend
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env with your AWS credentials
+uvicorn app.main:app --reload
+```
 
-- Node.js 18+
-- Python 3.9+
-- Anthropic API key
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/IParikh1/Polished.git
-   cd Polished
-   ```
-
-2. **Set up the backend**
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-
-   # Create .env file with your API key
-   echo "ANTHROPIC_API_KEY=your-api-key-here" > .env
-   ```
-
-3. **Set up the frontend**
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-### Running the Application
-
-1. **Start the backend** (port 8001)
-   ```bash
-   cd backend
-   python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
-   ```
-
-2. **Start the frontend** (port 5173)
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-3. **Open the app**
-   - Landing page: http://localhost:5173
-   - App: http://localhost:5173/app
-
-## Usage
-
-1. Visit the landing page and click "Polish My Resume"
-2. Upload your resume (PDF, DOCX, or TXT)
-3. Review the initial expert analysis
-4. Chat with the AI to get specific improvements
-5. View the live preview as your resume is rewritten
-6. Download the polished PDF
+### Docker (Full Stack)
+```bash
+docker-compose up -d
+```
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/upload` | POST | Upload and analyze a resume |
-| `/api/chat` | POST | Continue conversation with the agent |
-| `/api/session/{id}` | GET | Get session information |
-| `/api/session/{id}` | DELETE | Delete a session |
+### Batches (Core)
+- `POST /api/v1/batches` - Create batch
+- `GET /api/v1/batches` - List batches
+- `POST /api/v1/batches/{id}/upload` - Upload resume
+- `POST /api/v1/batches/{id}/process` - Start processing
+- `GET /api/v1/batches/{id}/rankings` - Get rankings
+- `POST /api/v1/batches/{id}/export` - Export results
 
-## Project Structure
+### Placements (Revenue)
+- `POST /api/v1/placements` - Report placement
+- `GET /api/v1/placements` - List placements
+- `POST /api/v1/placements/{id}/verify` - Verify placement
 
+### Consulting (Premium)
+- `POST /api/v1/consulting/sessions` - Create session
+- `POST /api/v1/consulting/chat` - Send message
+
+## Environment Variables
+
+### Backend (.env)
 ```
-Polished/
-├── backend/
-│   ├── app/
-│   │   ├── api/routes.py        # API endpoints
-│   │   ├── core/config.py       # Configuration
-│   │   ├── models/schemas.py    # Pydantic models
-│   │   └── services/
-│   │       ├── llm_service.py   # Claude API integration
-│   │       ├── resume_agent.py  # Expert agent logic
-│   │       └── resume_parser.py # PDF/DOCX parsing
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── components/          # React components
-│   │   ├── pages/               # Landing & App pages
-│   │   └── main.tsx
-│   └── package.json
-└── README.md
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your-key
+AWS_SECRET_ACCESS_KEY=your-secret
+S3_BUCKET=polished-batches-us-east-1
+DYNAMODB_TABLE_PREFIX=polished
+REDIS_URL=redis://localhost:6379/0
+PREMIUM_BYPASS=true
 ```
+
+### Frontend (.env)
+```
+VITE_API_URL=http://localhost:8000
+```
+
+## Deployment
+
+- **Backend**: Deployed on Railway
+- **Frontend**: Deployed on Vercel
 
 ## License
 
 MIT
-
----
-
-**Powered by Polished AI**

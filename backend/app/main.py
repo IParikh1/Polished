@@ -1,118 +1,231 @@
-import logging
-from datetime import datetime
-from zoneinfo import ZoneInfo
-from fastapi import FastAPI
+"""
+Polished Resume Ranking System - FastAPI Application
+Main entry point for the backend API.
+"""
+
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
+import os
+import time
+from datetime import datetime
 
-from app.core.config import APP_NAME, APP_VERSION, DEBUG, ALLOWED_ORIGINS, TIMEZONE
-from app.api.routes import router
-from app.api.billing_routes import router as billing_router
-from app.api.auth_routes import router as auth_router
-
-# Configure EST timezone for logging
-TZ = ZoneInfo(TIMEZONE)
-
-
-class ESTFormatter(logging.Formatter):
-    """Custom formatter that uses EST timezone for timestamps."""
-
-    def formatTime(self, record, datefmt=None):
-        dt = datetime.fromtimestamp(record.created, tz=TZ)
-        if datefmt:
-            return dt.strftime(datefmt)
-        return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+from .api.batch_routes import router as batch_router
+from .api.placement_routes import router as placement_router
+from .api.consult_routes import router as consult_router
+from .services.batch_cache import get_cache
+from .services.premium_gate import get_premium_gate
 
 
-# Configure logging with EST timezone
-handler = logging.StreamHandler()
-handler.setFormatter(ESTFormatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-logging.root.handlers = [handler]
-logging.root.setLevel(logging.DEBUG if DEBUG else logging.INFO)
-logger = logging.getLogger(__name__)
+# Application metadata
+APP_TITLE = "Polished Resume Ranking System"
+APP_DESCRIPTION = """
+A scalable resume sorting and ranking system with tiered features.
+
+## Features
+
+### Core (Free)
+- Batch upload of resumes (PDF, DOCX, TXT)
+- Quick rule-based scoring
+- Resume ranking
+- CSV/JSON export
+
+### Premium Add-ons
+- **JD Matching**: Match resumes against job descriptions
+- **Deep Analysis**: Comprehensive LLM-powered resume analysis
+- **Resume Consulting**: AI-powered rewrite suggestions
+
+### Revenue
+- Placement tracking with $250 per verified placement
+
+## API Sections
+- **Batches**: Create and manage resume batches
+- **Placements**: Track successful candidate placements
+- **Consulting**: Resume improvement suggestions (premium)
+"""
+
+APP_VERSION = "1.0.0"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan events."""
+    # Startup
+    print(f"Starting {APP_TITLE} v{APP_VERSION}")
+    print(f"Environment: {os.getenv('ENVIRONMENT', 'development')}")
+
+    # Initialize services
+    cache = get_cache()
+    health = cache.health_check()
+    print(f"Cache status: {health['status']} ({health['backend']})")
+
+    # Initialize premium gate
+    gate = get_premium_gate()
+    print(f"Premium bypass mode: {gate.bypass_mode}")
+
+    yield
+
+    # Shutdown
+    print("Shutting down...")
+
 
 # Create FastAPI app
 app = FastAPI(
-    title=APP_NAME,
+    title=APP_TITLE,
+    description=APP_DESCRIPTION,
     version=APP_VERSION,
-    description="AI-powered Resume Review Agent trained on FAANG hiring best practices"
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 
-# CORS middleware - allow frontend domains
-default_origins = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "https://getpolished.ai",
-    "https://www.getpolished.ai",
-    "https://polished-caml6stlq-polisheds-projects-2e1afa87.vercel.app",
-    "https://polished-polisheds-projects-2e1afa87.vercel.app",
-    "https://polished.vercel.app",
-]
-# Merge with any additional origins from config
-allowed_origins = list(set(default_origins + ALLOWED_ORIGINS))
+# CORS configuration
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routes
-app.include_router(router, prefix="/api")
-app.include_router(billing_router, prefix="/api")
-app.include_router(auth_router, prefix="/api")
+
+# Request timing middleware
+@app.middleware("http")
+async def add_timing_header(request: Request, call_next):
+    """Add request processing time header."""
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(round(process_time * 1000, 2))
+    return response
 
 
-@app.get("/")
-async def root():
-    return {
-        "name": APP_NAME,
-        "version": APP_VERSION,
-        "status": "running",
-        "features": ["streaming", "caching", "rate_limiting", "cognito_auth"],
-        "endpoints": {
-            "auth": {
-                "login": "GET /api/auth/login - Redirect to Cognito login",
-                "logout": "GET /api/auth/logout - Logout and clear session",
-                "callback": "GET /api/auth/callback - OAuth callback (exchange code for tokens)",
-                "refresh": "POST /api/auth/refresh - Refresh access token",
-                "me": "GET /api/auth/me - Get current user info (requires auth)",
-                "verify": "GET /api/auth/verify - Verify token validity",
-                "config": "GET /api/auth/config - Get Cognito config for frontend"
+# Rate limiting middleware
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    """Apply rate limiting."""
+    # Skip for health check and docs
+    if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json"]:
+        return await call_next(request)
+
+    # Get client identifier
+    client_ip = request.client.host if request.client else "unknown"
+    identifier = f"ip:{client_ip}"
+
+    # Check rate limit
+    cache = get_cache()
+    allowed, remaining = cache.check_rate_limit(identifier, limit=100, window=60)
+
+    if not allowed:
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "Rate limit exceeded",
+                "detail": "Too many requests. Please try again later.",
             },
-            "resume": {
-                "upload": "POST /api/upload - Upload resume for analysis",
-                "upload_stream": "POST /api/upload/stream - Upload with streaming (SSE)",
-                "chat": "POST /api/chat - Chat with the resume agent",
-                "chat_stream": "POST /api/chat/stream - Chat with streaming (SSE)",
-                "improve": "POST /api/improve - Get targeted improvements",
-                "improve_stream": "POST /api/improve/stream - Improvements with streaming (SSE)"
-            },
-            "session": {
-                "get": "GET /api/session/{id} - Get session info",
-                "ping": "POST /api/session/{id}/ping - Keep session alive",
-                "delete": "DELETE /api/session/{id} - Delete session data",
-                "usage": "GET /api/usage - Get rate limit usage"
-            },
-            "billing": {
-                "checkout": "POST /api/billing/checkout - Create Pro subscription",
-                "portal": "POST /api/billing/portal - Manage subscription"
+            headers={
+                "X-RateLimit-Remaining": str(remaining),
+                "Retry-After": "60",
             }
-        }
+        )
+
+    response = await call_next(request)
+    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    return response
+
+
+# Exception handlers
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handle HTTP exceptions."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": exc.detail if isinstance(exc.detail, str) else "Error",
+            "detail": exc.detail if isinstance(exc.detail, dict) else None,
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle unexpected exceptions."""
+    print(f"Unexpected error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "detail": str(exc) if os.getenv("DEBUG", "").lower() == "true" else None,
+        },
+    )
+
+
+# Include routers
+app.include_router(batch_router, prefix="/api/v1")
+app.include_router(placement_router, prefix="/api/v1")
+app.include_router(consult_router, prefix="/api/v1")
+
+
+# Health check endpoint
+@app.get("/health", tags=["Health"])
+async def health_check():
+    """
+    Health check endpoint.
+
+    Returns the current health status of the application and its dependencies.
+    """
+    cache = get_cache()
+    cache_health = cache.health_check()
+
+    return {
+        "status": "healthy",
+        "version": APP_VERSION,
+        "timestamp": datetime.utcnow().isoformat(),
+        "environment": os.getenv("ENVIRONMENT", "development"),
+        "dependencies": {
+            "cache": cache_health,
+        },
     }
 
 
-@app.get("/health")
-async def health():
-    now = datetime.now(TZ)
+# Root endpoint
+@app.get("/", tags=["Root"])
+async def root():
+    """Root endpoint with API information."""
     return {
-        "status": "healthy",
-        "timestamp": now.isoformat(),
-        "timezone": TIMEZONE
+        "name": APP_TITLE,
+        "version": APP_VERSION,
+        "docs": "/docs",
+        "health": "/health",
+        "api": "/api/v1",
+    }
+
+
+# API info endpoint
+@app.get("/api/v1", tags=["API"])
+async def api_info():
+    """API version information."""
+    return {
+        "version": "v1",
+        "endpoints": {
+            "batches": "/api/v1/batches",
+            "placements": "/api/v1/placements",
+            "consulting": "/api/v1/consulting",
+        },
+        "documentation": "/docs",
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+
+    uvicorn.run(
+        "app.main:app",
+        host=os.getenv("HOST", "0.0.0.0"),
+        port=int(os.getenv("PORT", "8000")),
+        reload=os.getenv("ENVIRONMENT", "development") == "development",
+    )

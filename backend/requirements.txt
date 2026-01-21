@@ -1,14 +1,33 @@
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-multipart==0.0.6
-pydantic==2.5.0
-anthropic>=0.75.0
-pypdf2==3.0.1
-python-docx==1.1.0
-python-dotenv==1.0.0
-httpx>=0.25.0
+# Polished Resume Ranking System - Backend Dependencies
+
+# Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Data Validation
+pydantic>=2.5.0
+
+# AWS SDK
+boto3>=1.33.0
+botocore>=1.33.0
+
+# Redis Cache
 redis>=5.0.0
-stripe>=7.0.0
-sqlalchemy>=2.0.0
-psycopg2-binary>=2.9.9
-python-jose[cryptography]>=3.3.0
+
+# Document Parsing
+PyPDF2>=3.0.0
+python-docx>=1.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.25.0
+
+# Development
+black>=23.0.0
+isort>=5.12.0
+mypy>=1.7.0
