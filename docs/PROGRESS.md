@@ -1,7 +1,7 @@
 # Polished Tech Sales Features - Progress Tracker
 
-**Last Updated:** January 22, 2025 (Session 4)
-**Overall Status:** 🟡 In Progress
+**Last Updated:** January 23, 2025 (Session 5)
+**Overall Status:** 🟢 Features Complete - Ready for Pilot
 
 ---
 
@@ -143,12 +143,12 @@
 | Milestone | Target Date | Status | Completion Date |
 |-----------|-------------|--------|-----------------|
 | AWS infrastructure ready | Day 1 | 🟢 | Jan 22, 2025 |
-| Deployment tested E2E | Day 2 | 🔴 | |
+| Deployment tested E2E | Day 2 | 🟢 | Jan 23, 2025 |
 | All prompts written | Day 5 | 🟢 | Jan 22, 2025 |
-| Role selector working E2E | Day 10 | 🔴 | |
-| JD matching working E2E | Day 14 | 🔴 | |
+| Role selector working E2E | Day 10 | 🟢 | Jan 22, 2025 |
+| JD matching working E2E | Day 14 | 🟢 | Jan 22, 2025 |
 | Agency pilot begins | Day 15 | 🔴 | |
-| Metrics extraction complete | Day 21 | 🔴 | |
+| Metrics extraction complete | Day 21 | 🟢 | Jan 23, 2025 |
 | First paid customer | Day 30 | 🔴 | |
 
 ---
@@ -224,6 +224,31 @@
 ---
 
 ## Notes & Decisions
+
+### January 23, 2025 (Session 5)
+- **Railway Deployment Complete**
+- Successfully deployed to Railway: https://polished-production.up.railway.app
+- Fixed Dockerfile to use PORT environment variable (Railway defaults to 8080)
+- All API endpoints tested and working:
+  - GET /health - Service health check
+  - GET /api/v1 - API version info
+  - GET /api/v1/batches - Batch management
+  - GET /api/v1/resume/templates - 5 resume templates
+  - GET /api/v1/resume/roles - 6 sales roles
+  - GET /api/v1/resume/writing-status - Feature availability
+  - POST /api/v1/resume/generate - Resume generation (premium)
+  - POST /api/v1/resume/export - Document export (premium)
+  - POST /api/v1/resume/extract-metrics - Metrics extraction
+  - POST /api/v1/batches/match-jd - JD matching
+- Features available:
+  - Full resume generation: true
+  - Section rewriting: true
+  - Summary generation: true
+  - Bullet enhancement: true
+  - Document export: true (PDF, DOCX, TXT, HTML)
+  - Metrics extraction: true
+- All 33 backend tests passing
+- Ready for agency pilot testing
 
 ### January 22, 2025 (Session 4)
 - **Feature 3: Metrics Extraction fully implemented**
