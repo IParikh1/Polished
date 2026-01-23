@@ -240,6 +240,58 @@ async def delete_batch(batch_id: str):
     return {"message": "Batch deleted successfully"}
 
 
+@router.post("/{batch_id}/reopen", response_model=BatchResponse)
+async def reopen_batch(batch_id: str):
+    """
+    Reopen a completed batch to allow adding more resumes.
+
+    This changes the batch status back to 'pending' so users can:
+    - Upload additional resumes
+    - Re-process all resumes together
+    - Get updated rankings
+
+    Only batches with status 'completed' or 'failed' can be reopened.
+    """
+    store = get_store()
+    cache = get_cache()
+
+    batch = await store.get_batch(batch_id)
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    # Only allow reopening completed or failed batches
+    if batch["status"] not in ["completed", "failed"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot reopen batch with status '{batch['status']}'. Only completed or failed batches can be reopened."
+        )
+
+    # Update status to pending
+    success = await store.update_batch_status(batch_id, BatchStatus.PENDING)
+
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to reopen batch")
+
+    # Invalidate cache
+    cache.invalidate_batch(batch_id)
+
+    # Get updated batch
+    updated_batch = await store.get_batch(batch_id)
+
+    return BatchResponse(
+        batch_id=updated_batch["batch_id"],
+        name=updated_batch["name"],
+        status=BatchStatus(updated_batch["status"]),
+        total_resumes=updated_batch.get("total_resumes", 0),
+        processed_resumes=updated_batch.get("processed_resumes", 0),
+        created_at=datetime.fromisoformat(updated_batch["created_at"]),
+        updated_at=datetime.fromisoformat(updated_batch["updated_at"]),
+        job_description=updated_batch.get("job_description"),
+        premium_features=updated_batch.get("premium_features", []),
+        settings=updated_batch.get("settings", {}),
+    )
+
+
 # ==================== Resume Upload Operations ====================
 
 @router.post("/{batch_id}/upload-urls", response_model=BatchUploadResponse)

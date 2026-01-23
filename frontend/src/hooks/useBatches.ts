@@ -76,3 +76,16 @@ export function useProcessingStatus(batchId: string | undefined, enabled = true)
     },
   })
 }
+
+export function useReopenBatch() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: batchApi.reopenBatch,
+    onSuccess: (_, batchId) => {
+      queryClient.invalidateQueries({ queryKey: ['batch', batchId] })
+      queryClient.invalidateQueries({ queryKey: ['batches'] })
+      queryClient.invalidateQueries({ queryKey: ['rankings', batchId] })
+    },
+  })
+}

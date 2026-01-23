@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus, FileText, Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
-import { useBatches, useBatch, useCreateBatch, useProcessBatch } from '../hooks/useBatches'
+import { Plus, FileText, Clock, CheckCircle2, AlertCircle, Loader2, RotateCcw } from 'lucide-react'
+import { useBatches, useBatch, useCreateBatch, useProcessBatch, useReopenBatch } from '../hooks/useBatches'
 import { useRankings } from '../hooks/useRankings'
 import BatchList from '../components/batch/BatchList'
 import BatchUpload from '../components/batch/BatchUpload'
@@ -30,6 +30,7 @@ export default function BatchDashboard() {
 
   const createBatch = useCreateBatch()
   const processBatch = useProcessBatch()
+  const reopenBatch = useReopenBatch()
 
   const handleCreateBatch = async () => {
     if (!newBatchName.trim()) return
@@ -55,6 +56,15 @@ export default function BatchDashboard() {
       await processBatch.mutateAsync(batchId)
     } catch (error) {
       console.error('Failed to start processing:', error)
+    }
+  }
+
+  const handleReopenBatch = async () => {
+    if (!batchId) return
+    try {
+      await reopenBatch.mutateAsync(batchId)
+    } catch (error) {
+      console.error('Failed to reopen batch:', error)
     }
   }
 
@@ -200,8 +210,27 @@ export default function BatchDashboard() {
                         )}
                       </button>
                     )}
-                    {selectedBatch.status === 'completed' && (
-                      <ExportButton batchId={batchId} />
+                    {(selectedBatch.status === 'completed' || selectedBatch.status === 'failed') && (
+                      <>
+                        <button
+                          onClick={handleReopenBatch}
+                          disabled={reopenBatch.isPending}
+                          className="btn-secondary gap-2"
+                          title="Reopen batch to add more resumes"
+                        >
+                          {reopenBatch.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <RotateCcw className="w-4 h-4" />
+                              Reopen
+                            </>
+                          )}
+                        </button>
+                        {selectedBatch.status === 'completed' && (
+                          <ExportButton batchId={batchId} />
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

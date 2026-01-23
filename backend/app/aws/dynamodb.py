@@ -29,6 +29,17 @@ class DecimalEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
+def convert_decimals(obj):
+    """Recursively convert Decimal values to float in nested structures."""
+    if isinstance(obj, Decimal):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {k: convert_decimals(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_decimals(item) for item in obj]
+    return obj
+
+
 def get_dynamodb_resource():
     """Get DynamoDB resource with configured region."""
     return boto3.resource("dynamodb", region_name=AWS_REGION)
@@ -209,7 +220,9 @@ class DynamoDBClient:
             response = table.get_item(
                 Key={"batch_id": batch_id, "resume_id": resume_id}
             )
-            return response.get("Item")
+            item = response.get("Item")
+            # Convert Decimal values to float for API compatibility
+            return convert_decimals(item) if item else None
         except ClientError as e:
             print(f"Error getting resume: {e}")
             return None
@@ -227,6 +240,9 @@ class DynamoDBClient:
                 KeyConditionExpression=Key("batch_id").eq(batch_id)
             )
             resumes = response.get("Items", [])
+
+            # Convert Decimal values to float for API compatibility
+            resumes = [convert_decimals(r) for r in resumes]
 
             if sort_by_score:
                 resumes.sort(
@@ -250,6 +266,9 @@ class DynamoDBClient:
         """Update resume scores and ranking."""
         table = self.resource.Table(BATCH_RESUMES_TABLE)
 
+        # Convert float values in scores dict to Decimal for DynamoDB
+        scores_decimal = {k: Decimal(str(v)) for k, v in scores.items()}
+
         update_expr = """
             SET scores = :scores,
                 overall_score = :overall,
@@ -257,7 +276,7 @@ class DynamoDBClient:
                 #status = :status
         """
         expr_values = {
-            ":scores": scores,
+            ":scores": scores_decimal,
             ":overall": Decimal(str(overall_score)),
             ":updated": datetime.utcnow().isoformat(),
             ":status": "scored"

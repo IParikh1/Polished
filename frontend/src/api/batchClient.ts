@@ -138,6 +138,11 @@ export async function deleteBatch(batchId: string): Promise<void> {
   await api.delete(`/batches/${batchId}`)
 }
 
+export async function reopenBatch(batchId: string): Promise<Batch> {
+  const response = await api.post<Batch>(`/batches/${batchId}/reopen`)
+  return response.data
+}
+
 export type SalesRole = 'entry_sdr' | 'sdr' | 'account_executive' | 'senior_ae' | 'account_manager' | 'sales_manager'
 
 export async function uploadResume(

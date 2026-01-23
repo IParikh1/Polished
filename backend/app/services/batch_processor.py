@@ -381,7 +381,8 @@ class BatchProcessor:
             else:
                 scores = self._default_scoring(text, extracted_data)
 
-            overall_score = scores.pop("overall", 0)
+            # Get overall score but keep it in scores dict for API responses
+            overall_score = scores.get("overall", 0)
             await self.store.update_resume_scores(
                 batch_id, resume_id, scores, overall_score
             )

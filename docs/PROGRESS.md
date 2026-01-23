@@ -1,6 +1,6 @@
 # Polished Tech Sales Features - Progress Tracker
 
-**Last Updated:** January 22, 2026 (Session 8)
+**Last Updated:** January 22, 2026 (Session 9)
 **Overall Status:** 🟢 Features Complete - Ready for Pilot
 
 ---
@@ -15,6 +15,7 @@
 | Feature 3: Metrics Extraction | 🟢 Complete | 7/7 tasks | Day 21 |
 | Feature 4: Resume Writing & Export | 🟢 Complete | 10/10 tasks | Day 21 |
 | Prompt Engineering | 🟢 Complete | 8/8 tasks | Day 10 |
+| Bug Fixes & Enhancements | 🟢 Complete | 2/2 tasks | Ongoing |
 
 **Legend:** 🔴 Not Started | 🟡 In Progress | 🟢 Complete | ⏸️ Blocked
 
@@ -230,10 +231,42 @@
 | Jan 22, 2026 | T.2 | Fix TypeScript build errors for Vercel deployment |
 | Jan 22, 2026 | T.3 | Add live LLM status display to Settings page |
 | Jan 22, 2026 | LLM.1 | Confirm ANTHROPIC_API_KEY configured on Railway |
+| Jan 22, 2026 | BF.1 | Add "Reopen Batch" feature - Backend API endpoint |
+| Jan 22, 2026 | BF.2 | Add "Reopen Batch" feature - Frontend UI |
+| Jan 22, 2026 | BF.3 | Fix scoring bug - Keep overall score in scores dict |
+| Jan 22, 2026 | BF.4 | Fix scoring bug - DynamoDB Decimal conversion |
+
+---
+
+## Bug Fixes & Enhancements
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| BF.1 | Add "Reopen Batch" feature - Backend API | 🟢 | Completed Jan 22, 2026 - POST /batches/{id}/reopen |
+| BF.2 | Add "Reopen Batch" feature - Frontend UI | 🟢 | Completed Jan 22, 2026 - Reopen button in BatchDashboard |
+| BF.3 | Fix scoring bug - overall_score: 0 | 🟢 | Completed Jan 22, 2026 - Keep overall in scores dict |
+| BF.4 | Fix DynamoDB Decimal conversion | 🟢 | Completed Jan 22, 2026 - Convert on read/write |
 
 ---
 
 ## Notes & Decisions
+
+### January 22, 2026 (Session 9)
+- **Reopen Batch Feature & Scoring Bug Fix**
+- Added "Reopen Batch" feature:
+  - New backend endpoint: POST /batches/{batch_id}/reopen
+  - Only allows reopening batches with status 'completed' or 'failed'
+  - Changes batch status back to 'pending' to allow adding more resumes
+  - Frontend: Added "Reopen" button with RotateCcw icon in BatchDashboard
+  - Uses useReopenBatch hook with proper cache invalidation
+- Fixed scoring bug (overall_score: 0):
+  - Root cause 1: scores.pop("overall") was removing overall from scores dict
+  - Root cause 2: Float values not converted to Decimal for DynamoDB storage
+  - Root cause 3: Decimal values not converted back to float when reading
+  - Fix: Use scores.get() instead of pop() to keep overall in dict
+  - Fix: Convert float to Decimal when writing to DynamoDB (scores_decimal)
+  - Fix: Added convert_decimals() helper to convert Decimal to float on read
+  - Updated get_resume() and get_batch_resumes() to convert Decimals
 
 ### January 22, 2026 (Session 8)
 - **TypeScript Build Fixes & LLM Status Integration**
