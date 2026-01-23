@@ -3,6 +3,8 @@ import Layout from './components/Layout'
 import BatchDashboard from './pages/BatchDashboard'
 import ConsultingPage from './pages/ConsultingPage'
 import WritingPage from './pages/WritingPage'
+import AnalyticsPage from './pages/AnalyticsPage'
+import SettingsPage from './pages/SettingsPage'
 
 function App() {
   return (
@@ -15,6 +17,8 @@ function App() {
         <Route path="consulting/:sessionId" element={<ConsultingPage />} />
         <Route path="writing" element={<WritingPage />} />
         <Route path="writing/:batchId/:resumeId" element={<WritingPage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   )
