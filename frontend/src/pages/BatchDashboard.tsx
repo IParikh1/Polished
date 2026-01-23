@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus, FileText, Clock, CheckCircle2, AlertCircle, Loader2, RotateCcw } from 'lucide-react'
-import { useBatches, useBatch, useCreateBatch, useProcessBatch, useReopenBatch } from '../hooks/useBatches'
+import { Plus, FileText, Clock, CheckCircle2, AlertCircle, Loader2, RotateCcw, ListOrdered } from 'lucide-react'
+import { useBatches, useBatch, useCreateBatch, useProcessBatch, useReopenBatch, useCloseBatch } from '../hooks/useBatches'
 import { useRankings } from '../hooks/useRankings'
 import BatchList from '../components/batch/BatchList'
 import BatchUpload from '../components/batch/BatchUpload'
@@ -31,6 +31,7 @@ export default function BatchDashboard() {
   const createBatch = useCreateBatch()
   const processBatch = useProcessBatch()
   const reopenBatch = useReopenBatch()
+  const closeBatch = useCloseBatch()
 
   const handleCreateBatch = async () => {
     if (!newBatchName.trim()) return
@@ -65,6 +66,15 @@ export default function BatchDashboard() {
       await reopenBatch.mutateAsync(batchId)
     } catch (error) {
       console.error('Failed to reopen batch:', error)
+    }
+  }
+
+  const handleCloseBatch = async () => {
+    if (!batchId) return
+    try {
+      await closeBatch.mutateAsync(batchId)
+    } catch (error) {
+      console.error('Failed to close batch:', error)
     }
   }
 
@@ -198,17 +208,34 @@ export default function BatchDashboard() {
                   </div>
                   <div className="flex items-center gap-3">
                     {selectedBatch.status === 'pending' && (rankingsData?.total || selectedBatch.total_resumes) > 0 && (
-                      <button
-                        onClick={handleProcessBatch}
-                        disabled={processBatch.isPending}
-                        className="btn-primary gap-2"
-                      >
-                        {processBatch.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          'Start Processing'
-                        )}
-                      </button>
+                      <>
+                        <button
+                          onClick={handleCloseBatch}
+                          disabled={closeBatch.isPending}
+                          className="btn-secondary gap-2"
+                          title="Close batch to view rankings without processing"
+                        >
+                          {closeBatch.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <ListOrdered className="w-4 h-4" />
+                              View Rankings
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={handleProcessBatch}
+                          disabled={processBatch.isPending}
+                          className="btn-primary gap-2"
+                        >
+                          {processBatch.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            'Start Processing'
+                          )}
+                        </button>
+                      </>
                     )}
                     {(selectedBatch.status === 'completed' || selectedBatch.status === 'failed') && (
                       <>

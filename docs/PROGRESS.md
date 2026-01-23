@@ -1,6 +1,6 @@
 # Polished Tech Sales Features - Progress Tracker
 
-**Last Updated:** January 22, 2026 (Session 9)
+**Last Updated:** January 23, 2026 (Session 10)
 **Overall Status:** 🟢 Features Complete - Ready for Pilot
 
 ---
@@ -235,6 +235,9 @@
 | Jan 22, 2026 | BF.2 | Add "Reopen Batch" feature - Frontend UI |
 | Jan 22, 2026 | BF.3 | Fix scoring bug - Keep overall score in scores dict |
 | Jan 22, 2026 | BF.4 | Fix scoring bug - DynamoDB Decimal conversion |
+| Jan 23, 2026 | BF.5 | Real-time resume count sync after uploads |
+| Jan 23, 2026 | BF.6 | Manual batch close feature - Backend API |
+| Jan 23, 2026 | BF.7 | Manual batch close feature - Frontend UI |
 
 ---
 
@@ -246,10 +249,34 @@
 | BF.2 | Add "Reopen Batch" feature - Frontend UI | 🟢 | Completed Jan 22, 2026 - Reopen button in BatchDashboard |
 | BF.3 | Fix scoring bug - overall_score: 0 | 🟢 | Completed Jan 22, 2026 - Keep overall in scores dict |
 | BF.4 | Fix DynamoDB Decimal conversion | 🟢 | Completed Jan 22, 2026 - Convert on read/write |
+| BF.5 | Real-time resume count sync after uploads | 🟢 | Completed Jan 23, 2026 - Invalidate all queries |
+| BF.6 | Manual batch close/complete feature - Backend | 🟢 | Completed Jan 23, 2026 - POST /batches/{id}/close |
+| BF.7 | Manual batch close/complete feature - Frontend | 🟢 | Completed Jan 23, 2026 - View Rankings button |
 
 ---
 
 ## Notes & Decisions
+
+### January 23, 2026 (Session 10)
+- **Real-time Resume Count Sync & Manual Batch Close**
+- Fixed stale resume count display after uploads:
+  - Root cause: Rankings query was not being invalidated after upload
+  - Fix: Added invalidation for ['rankings', batchId] and ['batches'] queries in useUpload.ts
+  - Both useUpload (multiple) and useSingleUpload hooks now invalidate all relevant queries
+- Added "Manual Close Batch" feature:
+  - New backend endpoint: POST /batches/{batch_id}/close
+  - Only allows closing batches with status 'pending' or 'processing'
+  - Requires at least one resume in the batch
+  - Changes batch status to 'completed' so rankings become visible
+  - Frontend: Added "View Rankings" button with ListOrdered icon for pending batches
+  - Uses useCloseBatch hook with proper cache invalidation
+  - Allows users to see rankings without waiting for processing
+- Files modified:
+  - backend/app/api/batch_routes.py - Added close_batch endpoint
+  - frontend/src/api/batchClient.ts - Added closeBatch function
+  - frontend/src/hooks/useBatches.ts - Added useCloseBatch hook
+  - frontend/src/hooks/useUpload.ts - Added query invalidations for real-time sync
+  - frontend/src/pages/BatchDashboard.tsx - Added View Rankings button
 
 ### January 22, 2026 (Session 9)
 - **Reopen Batch Feature & Scoring Bug Fix**

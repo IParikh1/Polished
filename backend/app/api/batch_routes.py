@@ -240,6 +240,66 @@ async def delete_batch(batch_id: str):
     return {"message": "Batch deleted successfully"}
 
 
+@router.post("/{batch_id}/close", response_model=BatchResponse)
+async def close_batch(batch_id: str):
+    """
+    Manually close a batch to view rankings without waiting for processing.
+
+    This allows users to:
+    - View the ranking table for resumes that have been uploaded
+    - See partial rankings even if not all resumes are processed
+    - Stop accepting new uploads for this batch
+
+    The batch status changes to 'completed' so rankings become visible.
+    Only batches with status 'pending' or 'processing' can be closed.
+    """
+    store = get_store()
+    cache = get_cache()
+
+    batch = await store.get_batch(batch_id)
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    # Only allow closing pending or processing batches
+    if batch["status"] not in ["pending", "processing"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot close batch with status '{batch['status']}'. Only pending or processing batches can be closed."
+        )
+
+    # Check if batch has any resumes
+    if batch.get("total_resumes", 0) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot close an empty batch. Upload at least one resume first."
+        )
+
+    # Update status to completed
+    success = await store.update_batch_status(batch_id, BatchStatus.COMPLETED)
+
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to close batch")
+
+    # Invalidate cache
+    cache.invalidate_batch(batch_id)
+
+    # Get updated batch
+    updated_batch = await store.get_batch(batch_id)
+
+    return BatchResponse(
+        batch_id=updated_batch["batch_id"],
+        name=updated_batch["name"],
+        status=BatchStatus(updated_batch["status"]),
+        total_resumes=updated_batch.get("total_resumes", 0),
+        processed_resumes=updated_batch.get("processed_resumes", 0),
+        created_at=datetime.fromisoformat(updated_batch["created_at"]),
+        updated_at=datetime.fromisoformat(updated_batch["updated_at"]),
+        job_description=updated_batch.get("job_description"),
+        premium_features=updated_batch.get("premium_features", []),
+        settings=updated_batch.get("settings", {}),
+    )
+
+
 @router.post("/{batch_id}/reopen", response_model=BatchResponse)
 async def reopen_batch(batch_id: str):
     """

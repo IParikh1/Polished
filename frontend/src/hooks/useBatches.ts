@@ -89,3 +89,16 @@ export function useReopenBatch() {
     },
   })
 }
+
+export function useCloseBatch() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: batchApi.closeBatch,
+    onSuccess: (_, batchId) => {
+      queryClient.invalidateQueries({ queryKey: ['batch', batchId] })
+      queryClient.invalidateQueries({ queryKey: ['batches'] })
+      queryClient.invalidateQueries({ queryKey: ['rankings', batchId] })
+    },
+  })
+}

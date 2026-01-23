@@ -33,8 +33,11 @@ export function useUpload(batchId: string) {
           .filter((r) => r.status === 'error')
           .map((r) => ({ filename: r.filename, error: r.error || 'Unknown error' })),
       }))
+      // Invalidate all relevant queries to sync resume counts in real-time
       queryClient.invalidateQueries({ queryKey: ['batch', batchId] })
       queryClient.invalidateQueries({ queryKey: ['batch-resumes', batchId] })
+      queryClient.invalidateQueries({ queryKey: ['rankings', batchId] })
+      queryClient.invalidateQueries({ queryKey: ['batches'] })
     },
     onError: (error) => {
       setState((prev) => ({
@@ -83,8 +86,11 @@ export function useSingleUpload(batchId: string) {
   return useMutation({
     mutationFn: (file: File) => batchApi.uploadResume(batchId, file),
     onSuccess: () => {
+      // Invalidate all relevant queries to sync resume counts in real-time
       queryClient.invalidateQueries({ queryKey: ['batch', batchId] })
       queryClient.invalidateQueries({ queryKey: ['batch-resumes', batchId] })
+      queryClient.invalidateQueries({ queryKey: ['rankings', batchId] })
+      queryClient.invalidateQueries({ queryKey: ['batches'] })
     },
   })
 }
