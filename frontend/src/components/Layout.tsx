@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { FileText, MessageSquare, BarChart3, Settings, Menu, X, Sparkles } from 'lucide-react'
+import { FileText, MessageSquare, BarChart3, Settings, Menu, X, Sparkles, HelpCircle } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
 
@@ -9,6 +9,7 @@ const navigation = [
   { name: 'Consulting', href: '/consulting', icon: MessageSquare },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Help', href: '/help', icon: HelpCircle },
 ]
 
 export default function Layout() {
@@ -119,9 +120,9 @@ export default function Layout() {
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-4">
-            <button className="btn-secondary">
+            <Link to="/help" className="btn-secondary">
               <span className="hidden sm:inline">Documentation</span>
-            </button>
+            </Link>
           </div>
         </header>
 

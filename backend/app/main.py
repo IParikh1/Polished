@@ -219,8 +219,67 @@ async def api_info():
             "placements": "/api/v1/placements",
             "consulting": "/api/v1/consulting",
             "resume": "/api/v1/resume",
+            "config": "/api/v1/config",
         },
         "documentation": "/docs",
+    }
+
+
+# LLM Configuration status endpoint
+@app.get("/api/v1/config/llm-status", tags=["Config"])
+async def get_llm_status():
+    """
+    Check LLM service configuration status.
+
+    Returns whether the Anthropic API key is configured and LLM features are available.
+    Does not expose the actual API key value.
+    """
+    from .services.resume_writer import get_writer
+    from .services.metrics_extractor import get_extractor
+
+    writer = get_writer()
+    extractor = get_extractor()
+
+    # Check if API key is configured (without exposing it)
+    api_key_set = bool(os.getenv("ANTHROPIC_API_KEY"))
+    api_key_prefix = None
+    if api_key_set:
+        key = os.getenv("ANTHROPIC_API_KEY", "")
+        # Show only the first 10 chars for verification (e.g., "sk-ant-api...")
+        api_key_prefix = key[:10] + "..." if len(key) > 10 else "***"
+
+    # Try to import anthropic to check if package is installed
+    try:
+        import anthropic
+        anthropic_installed = True
+    except ImportError:
+        anthropic_installed = False
+
+    return {
+        "llm_configured": api_key_set and anthropic_installed,
+        "api_key_set": api_key_set,
+        "api_key_prefix": api_key_prefix,
+        "anthropic_package_installed": anthropic_installed,
+        "services": {
+            "resume_writer": {
+                "available": writer.is_available(),
+                "features": {
+                    "full_resume_generation": writer.is_available(),
+                    "section_rewriting": True,  # Rule-based fallback available
+                    "summary_generation": True,  # Rule-based fallback available
+                    "bullet_enhancement": True,  # Rule-based fallback available
+                }
+            },
+            "metrics_extraction": {
+                "available": extractor.is_available(),
+                "llm_enhanced": api_key_set and anthropic_installed,
+            }
+        },
+        "configuration_help": {
+            "railway": "Set ANTHROPIC_API_KEY in Railway environment variables",
+            "local": "Set ANTHROPIC_API_KEY in .env file or export as environment variable",
+            "get_key_url": "https://console.anthropic.com/account/keys",
+        }
     }
 
 

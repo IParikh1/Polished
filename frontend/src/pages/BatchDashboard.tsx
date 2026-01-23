@@ -180,14 +180,14 @@ export default function BatchDashboard() {
                       {getStatusBadge(selectedBatch.status)}
                     </div>
                     <p className="text-gray-600">
-                      {selectedBatch.total_resumes} resumes | {selectedBatch.processed_resumes} processed
+                      {rankingsData?.total || selectedBatch.total_resumes} resumes | {selectedBatch.processed_resumes} processed
                     </p>
                     {selectedBatch.job_description && (
                       <p className="text-sm text-primary-600 mt-1">JD Matching enabled</p>
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    {selectedBatch.status === 'pending' && selectedBatch.total_resumes > 0 && (
+                    {selectedBatch.status === 'pending' && (rankingsData?.total || selectedBatch.total_resumes) > 0 && (
                       <button
                         onClick={handleProcessBatch}
                         disabled={processBatch.isPending}
