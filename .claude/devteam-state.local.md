@@ -1,332 +1,175 @@
-# DevTeam Orchestrator - Polished Resume Ranking System
-## Progress Tracking - FINAL
+# DevTeam Orchestrator - Polished Tech Sales Features
+## Progress Tracking
 
-**Project**: Scalable Resume Sorting & Ranking System
-**Started**: 2026-01-20
-**Completed**: 2026-01-20
-**Method**: RALPH (Read, Analyze, Lay out, Program, Harmonize)
-
----
-
-## Final Status
-- **Phase**: 10 - Complete
-- **Tasks Completed**: 65 of 65
-- **Progress**: 100%
+**Project**: Tech Sales Resume Optimization Platform
+**Started**: January 2025
+**Last Updated**: January 22, 2026 (Session 6)
+**Method**: RALPH (Read, Analyze, Learn, Plan, Help)
 
 ---
 
-## Phase Overview
+## Current Phase
 
-| Phase | Name | Tasks | Status |
-|-------|------|-------|--------|
-| 1 | AWS Infrastructure | 1-5 | COMPLETED |
-| 2 | Core Service Backend | 6-12 | COMPLETED |
-| 3 | Quick Scoring | 13-18 | COMPLETED |
-| 4 | Frontend Dashboard | 19-26 | COMPLETED |
-| 5 | JD Matching Premium | 27-31 | COMPLETED |
-| 6 | Deep Analysis Premium | 32-36 | COMPLETED |
-| 7 | Consulting Agent Premium | 37-42 | COMPLETED |
-| 8 | Premium Features UI | 43-48 | COMPLETED |
-| 9 | Placement Tracking | 49-58 | COMPLETED |
-| 10 | Polish & Testing | 59-65 | COMPLETED |
+- **Phase**: Frontend Integration Complete
+- **Status**: All core features implemented, ready for pilot testing
+- **Deployment**: https://polished-production.up.railway.app
 
 ---
 
-## Project Summary
+## Session 6 Summary (January 22, 2026)
 
-### What Was Built
+### Completed Tasks
+1. Created WritingPage.tsx - Comprehensive page integrating all writing components
+   - Full Resume Generation mode
+   - Metrics Extraction mode
+   - Section Rewriter mode
+2. Added /writing route to App.tsx with dynamic batch/resume parameters
+3. Added "Writing" navigation item with Sparkles icon to Layout.tsx sidebar
+4. Updated PROGRESS.md with latest changes
 
-**Polished** is a complete, scalable resume sorting and ranking system with:
+### Features Implemented
+- Batch/Resume selection flow before writing tools
+- Target role selection with SalesRoleSelector integration
+- Optional job description input for tailored content
+- Mode selection with cards and descriptions
+- Resume overview stats panel
+- Writing tips and power words reference panels
 
-#### Core Features (Free Tier)
-- Batch upload of resumes (PDF, DOCX, DOC, TXT, RTF)
-- Automatic text extraction and parsing
-- Rule-based scoring across 6 categories:
-  - Experience (years, roles, achievements)
-  - Skills (technical skills detection)
-  - Education (degree levels, fields)
-  - Formatting (structure, readability)
-  - Keywords (job-relevant terms)
-  - Contact Info (completeness)
-- Automatic ranking by overall score
-- CSV and JSON export
-- Real-time processing status
+---
 
-#### Premium Features
-1. **JD Matching** (Basic tier - $29/mo)
-   - Match resumes against job descriptions
-   - Skill gap analysis
-   - Match score calculation
-   - Hiring recommendations
+## Feature Status
 
-2. **Deep Analysis** (Pro tier - $99/mo)
-   - AI-powered strengths/weaknesses assessment
-   - Culture fit evaluation
-   - Red flag detection
-   - Interview question suggestions
-   - Growth potential analysis
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Infrastructure (AWS) | Complete | DynamoDB + S3 configured |
+| Role-Specific Optimization | Complete | 6 tech sales roles |
+| Job Description Matching | Complete | Tech sales-specific matching |
+| Metrics Extraction | Complete | Pattern-based + LLM fallback |
+| Resume Writing & Export | Complete | PDF/DOCX/TXT/HTML |
+| Frontend Writing Page | Complete | Integrated all components |
+| Railway Deployment | Complete | Auto-deploy from GitHub |
 
-3. **Resume Consulting** (Enterprise tier - $499/mo)
-   - Interactive AI chat for resume improvement
-   - Section-by-section feedback
-   - Automated section rewrites
-   - Role-specific optimization
+---
 
-#### Revenue System
-- Placement tracking with $250 per verified placement
-- Verification workflow (pending -> verified -> paid)
-- Revenue analytics and reporting
+## Files Modified This Session
+
+1. `/Users/ishan/Polished-git/frontend/src/pages/WritingPage.tsx` (created)
+2. `/Users/ishan/Polished-git/frontend/src/App.tsx` (updated routes)
+3. `/Users/ishan/Polished-git/frontend/src/components/Layout.tsx` (updated navigation)
+4. `/Users/ishan/Polished-git/docs/PROGRESS.md` (updated)
 
 ---
 
 ## Technical Architecture
 
-### Backend (Python/FastAPI)
+### Frontend Components
 ```
-backend/
-├── app/
-│   ├── main.py              # FastAPI application entry point
-│   ├── api/
-│   │   ├── batch_routes.py  # Batch CRUD & processing
-│   │   ├── placement_routes.py  # Placement tracking
-│   │   └── consult_routes.py    # Consulting sessions
-│   ├── models/
-│   │   └── batch_schemas.py # Pydantic models
-│   ├── services/
-│   │   ├── aws_store.py     # DynamoDB + S3 operations
-│   │   ├── batch_processor.py   # Resume processing pipeline
-│   │   ├── batch_cache.py   # Redis caching
-│   │   ├── quick_scorer.py  # Rule-based scoring
-│   │   ├── jd_matcher.py    # JD matching algorithm
-│   │   ├── premium_gate.py  # Feature gating
-│   │   └── email_service.py # Email notifications
-│   └── aws/
-│       ├── dynamodb.py      # DynamoDB client
-│       ├── s3.py            # S3 client
-│       └── setup.py         # Infrastructure setup
-├── requirements.txt
-├── Dockerfile
-└── .env.example
-```
-
-### Frontend (React/TypeScript)
-```
-frontend/
-├── src/
-│   ├── main.tsx
-│   ├── App.tsx
-│   ├── pages/
-│   │   ├── BatchDashboard.tsx
-│   │   └── ConsultingPage.tsx
-│   ├── components/
-│   │   ├── Layout.tsx
-│   │   ├── batch/
-│   │   │   ├── BatchList.tsx
-│   │   │   ├── BatchUpload.tsx
-│   │   │   ├── BatchProgress.tsx
-│   │   │   ├── RankingTable.tsx
-│   │   │   ├── ExportButton.tsx
-│   │   │   ├── JDInput.tsx
-│   │   │   ├── ScoreBreakdown.tsx
-│   │   │   ├── DeepAnalysisModal.tsx
-│   │   │   ├── BatchFilters.tsx
-│   │   │   └── PremiumUpgrade.tsx
-│   │   ├── consulting/
-│   │   │   ├── ConsultingChat.tsx
-│   │   │   ├── RewritePreview.tsx
-│   │   │   └── RoleSelector.tsx
-│   │   └── placements/
-│   │       ├── PlacementReporter.tsx
-│   │       └── PlacementList.tsx
-│   ├── hooks/
-│   │   ├── useBatches.ts
-│   │   ├── useRankings.ts
-│   │   ├── useUpload.ts
-│   │   ├── useConsulting.ts
-│   │   └── usePremium.ts
-│   └── api/
-│       ├── batchClient.ts
-│       └── consultClient.ts
-├── package.json
-├── tailwind.config.js
-├── Dockerfile
-└── nginx.conf
+frontend/src/
+├── pages/
+│   ├── BatchDashboard.tsx
+│   ├── ConsultingPage.tsx
+│   └── WritingPage.tsx (NEW)
+├── components/
+│   ├── batch/
+│   │   ├── SalesRoleSelector.tsx
+│   │   ├── JDMatcher.tsx
+│   │   └── ...
+│   └── writing/
+│       ├── ResumeWriter.tsx
+│       ├── MetricsExtractor.tsx
+│       ├── SectionRewriter.tsx
+│       ├── TemplateSelector.tsx
+│       ├── ResumePreview.tsx
+│       └── ExportModal.tsx
+├── hooks/
+│   ├── useResumeWriting.ts
+│   ├── useMetricsExtraction.ts
+│   └── ...
+└── api/
+    └── batchClient.ts
 ```
 
-### AWS Resources
-- **DynamoDB Tables**:
-  - `polished-batches`: Batch metadata
-  - `polished-batch-resumes`: Resume data with scores
-  - `polished-placements`: Placement tracking
-- **S3 Bucket**: `polished-batches-us-east-1`
-  - Structure: `{batch_id}/resumes/{resume_id}/{filename}`
-  - Exports: `{batch_id}/exports/{export_id}.{json|csv}`
+### Backend Services
+```
+backend/app/
+├── api/
+│   ├── batch_routes.py
+│   └── resume_routes.py
+├── services/
+│   ├── resume_writer.py
+│   ├── metrics_extractor.py
+│   ├── jd_matcher.py
+│   ├── document_generator.py
+│   └── prompts/
+│       ├── base_sales_prompt.py
+│       ├── role_prompts/
+│       ├── jd_matching.py
+│       └── metrics_extraction.py
+└── models/
+    └── batch_schemas.py
+```
 
-### Caching
-- Redis for production (with in-memory fallback)
-- Cached: batch metadata, rankings, processing status
-- TTL: 30 min - 2 hours depending on data type
+---
+
+## Next Actions
+
+1. [ ] Set up ANTHROPIC_API_KEY in Railway for LLM features
+2. [ ] Begin agency pilot testing
+3. [ ] Collect user feedback on writing page UX
+4. [ ] Implement authentication (optional)
+5. [ ] Add usage analytics/tracking
+
+---
+
+## Deployment Information
+
+- **Production URL**: https://polished-production.up.railway.app
+- **GitHub Repo**: IParikh1/Polished (main branch)
+- **Auto-Deploy**: Railway watches main branch
+- **Backend Port**: 8080 (Railway default)
+
+### Environment Variables (Railway)
+- AWS_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY
+- AWS_REGION
+- ANTHROPIC_API_KEY (pending)
 
 ---
 
 ## API Endpoints
 
-### Batches
-- `POST /api/v1/batches` - Create batch
-- `GET /api/v1/batches` - List batches
-- `GET /api/v1/batches/{id}` - Get batch
-- `PATCH /api/v1/batches/{id}` - Update batch
-- `DELETE /api/v1/batches/{id}` - Delete batch
-- `POST /api/v1/batches/{id}/upload` - Upload resume
-- `POST /api/v1/batches/{id}/upload-multiple` - Batch upload
-- `POST /api/v1/batches/{id}/process` - Start processing
-- `GET /api/v1/batches/{id}/processing-status` - Get status
-- `GET /api/v1/batches/{id}/resumes` - List resumes
-- `GET /api/v1/batches/{id}/rankings` - Get rankings
-- `POST /api/v1/batches/{id}/export` - Export results
+### Resume Writing
+- POST /api/v1/resume/generate - Generate optimized resume
+- POST /api/v1/resume/rewrite-section - Rewrite specific section
+- POST /api/v1/resume/generate-summary - Generate summary variants
+- POST /api/v1/resume/enhance-bullets - Enhance bullet points
+- POST /api/v1/resume/export - Export to document format
+- POST /api/v1/resume/extract-metrics - Extract sales metrics
+- POST /api/v1/resume/format-metrics - Format metrics to bullets
+- GET /api/v1/resume/templates - List templates
+- GET /api/v1/resume/roles - List sales roles
+- GET /api/v1/resume/writing-status - Check service status
 
-### Placements
-- `POST /api/v1/placements` - Report placement
-- `GET /api/v1/placements` - List placements
-- `GET /api/v1/placements/{id}` - Get placement
-- `POST /api/v1/placements/{id}/verify` - Verify placement
-- `POST /api/v1/placements/{id}/dispute` - Dispute placement
-- `POST /api/v1/placements/{id}/mark-paid` - Mark as paid
-- `GET /api/v1/placements/stats` - Get statistics
+### JD Matching
+- POST /api/v1/batches/match-jd - Match resume to JD
+- POST /api/v1/batches/tailor-resume - Generate tailored resume
 
-### Consulting
-- `POST /api/v1/consulting/sessions` - Create session
-- `GET /api/v1/consulting/sessions/{id}` - Get session
-- `POST /api/v1/consulting/analyze` - Analyze resume
-- `POST /api/v1/consulting/rewrite` - Rewrite section
-- `POST /api/v1/consulting/chat` - Send message
-- `GET /api/v1/consulting/chat/{id}/history` - Get history
+### Batch Management
+- GET/POST /api/v1/batches - List/create batches
+- GET/PATCH/DELETE /api/v1/batches/{id} - Batch operations
+- POST /api/v1/batches/{id}/upload - Upload resume
+- POST /api/v1/batches/{id}/process - Process batch
+- GET /api/v1/batches/{id}/rankings - Get rankings
 
 ---
 
-## Getting Started
+## Session History
 
-### Prerequisites
-- Python 3.11+
-- Node.js 20+
-- AWS account with DynamoDB and S3 access
-- Redis (optional, for caching)
-
-### Backend Setup
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-# Edit .env with your AWS credentials
-python -m app.aws.setup  # Create AWS resources
-uvicorn app.main:app --reload
-```
-
-### Frontend Setup
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### Docker Setup
-```bash
-docker-compose up -d
-```
-
----
-
-## Files Created (65 files)
-
-### Backend (20 files)
-1. `/Users/ishan/Polished/backend/app/__init__.py`
-2. `/Users/ishan/Polished/backend/app/main.py`
-3. `/Users/ishan/Polished/backend/app/aws/__init__.py`
-4. `/Users/ishan/Polished/backend/app/aws/dynamodb.py`
-5. `/Users/ishan/Polished/backend/app/aws/s3.py`
-6. `/Users/ishan/Polished/backend/app/aws/setup.py`
-7. `/Users/ishan/Polished/backend/app/api/__init__.py`
-8. `/Users/ishan/Polished/backend/app/api/batch_routes.py`
-9. `/Users/ishan/Polished/backend/app/api/placement_routes.py`
-10. `/Users/ishan/Polished/backend/app/api/consult_routes.py`
-11. `/Users/ishan/Polished/backend/app/models/__init__.py`
-12. `/Users/ishan/Polished/backend/app/models/batch_schemas.py`
-13. `/Users/ishan/Polished/backend/app/services/__init__.py`
-14. `/Users/ishan/Polished/backend/app/services/aws_store.py`
-15. `/Users/ishan/Polished/backend/app/services/batch_processor.py`
-16. `/Users/ishan/Polished/backend/app/services/batch_cache.py`
-17. `/Users/ishan/Polished/backend/app/services/quick_scorer.py`
-18. `/Users/ishan/Polished/backend/app/services/jd_matcher.py`
-19. `/Users/ishan/Polished/backend/app/services/premium_gate.py`
-20. `/Users/ishan/Polished/backend/app/services/email_service.py`
-
-### Frontend (35 files)
-1. `/Users/ishan/Polished/frontend/package.json`
-2. `/Users/ishan/Polished/frontend/tsconfig.json`
-3. `/Users/ishan/Polished/frontend/tsconfig.node.json`
-4. `/Users/ishan/Polished/frontend/vite.config.ts`
-5. `/Users/ishan/Polished/frontend/tailwind.config.js`
-6. `/Users/ishan/Polished/frontend/postcss.config.js`
-7. `/Users/ishan/Polished/frontend/index.html`
-8. `/Users/ishan/Polished/frontend/src/main.tsx`
-9. `/Users/ishan/Polished/frontend/src/index.css`
-10. `/Users/ishan/Polished/frontend/src/App.tsx`
-11. `/Users/ishan/Polished/frontend/src/components/Layout.tsx`
-12. `/Users/ishan/Polished/frontend/src/api/batchClient.ts`
-13. `/Users/ishan/Polished/frontend/src/api/consultClient.ts`
-14. `/Users/ishan/Polished/frontend/src/hooks/useBatches.ts`
-15. `/Users/ishan/Polished/frontend/src/hooks/useRankings.ts`
-16. `/Users/ishan/Polished/frontend/src/hooks/useUpload.ts`
-17. `/Users/ishan/Polished/frontend/src/hooks/useConsulting.ts`
-18. `/Users/ishan/Polished/frontend/src/hooks/usePremium.ts`
-19. `/Users/ishan/Polished/frontend/src/pages/BatchDashboard.tsx`
-20. `/Users/ishan/Polished/frontend/src/pages/ConsultingPage.tsx`
-21. `/Users/ishan/Polished/frontend/src/components/batch/BatchList.tsx`
-22. `/Users/ishan/Polished/frontend/src/components/batch/BatchUpload.tsx`
-23. `/Users/ishan/Polished/frontend/src/components/batch/BatchProgress.tsx`
-24. `/Users/ishan/Polished/frontend/src/components/batch/RankingTable.tsx`
-25. `/Users/ishan/Polished/frontend/src/components/batch/ExportButton.tsx`
-26. `/Users/ishan/Polished/frontend/src/components/batch/JDInput.tsx`
-27. `/Users/ishan/Polished/frontend/src/components/batch/ScoreBreakdown.tsx`
-28. `/Users/ishan/Polished/frontend/src/components/batch/DeepAnalysisModal.tsx`
-29. `/Users/ishan/Polished/frontend/src/components/batch/BatchFilters.tsx`
-30. `/Users/ishan/Polished/frontend/src/components/batch/PremiumUpgrade.tsx`
-31. `/Users/ishan/Polished/frontend/src/components/consulting/ConsultingChat.tsx`
-32. `/Users/ishan/Polished/frontend/src/components/consulting/RewritePreview.tsx`
-33. `/Users/ishan/Polished/frontend/src/components/consulting/RoleSelector.tsx`
-34. `/Users/ishan/Polished/frontend/src/components/placements/PlacementReporter.tsx`
-35. `/Users/ishan/Polished/frontend/src/components/placements/PlacementList.tsx`
-
-### Configuration (10 files)
-1. `/Users/ishan/Polished/backend/requirements.txt`
-2. `/Users/ishan/Polished/backend/.env.example`
-3. `/Users/ishan/Polished/backend/Dockerfile`
-4. `/Users/ishan/Polished/frontend/.env.example`
-5. `/Users/ishan/Polished/frontend/Dockerfile`
-6. `/Users/ishan/Polished/frontend/nginx.conf`
-7. `/Users/ishan/Polished/docker-compose.yml`
-8. `/Users/ishan/Polished/.claude/devteam-state.local.md`
-
----
-
-## Next Steps for Production
-
-1. **Authentication**: Add user auth (e.g., Auth0, Cognito)
-2. **Payment Processing**: Integrate Stripe for placement fees
-3. **LLM Integration**: Connect OpenAI/Anthropic for deep analysis
-4. **Monitoring**: Add logging, metrics (CloudWatch, Datadog)
-5. **Testing**: Write unit and integration tests
-6. **CI/CD**: Set up GitHub Actions for deployment
-7. **SSL/TLS**: Configure HTTPS certificates
-8. **Rate Limiting**: Implement per-user rate limits
-9. **Backup**: Configure DynamoDB point-in-time recovery
-10. **CDN**: Add CloudFront for static assets
-
----
-
-## Session Complete
-- All 65 tasks completed
-- Full-stack application built
-- Ready for MVP deployment
+| Session | Date | Focus | Key Deliverables |
+|---------|------|-------|------------------|
+| 1 | Jan 22, 2025 | AWS Setup | DynamoDB, S3, Railway config |
+| 2 | Jan 22, 2025 | Prompts | Role prompts, resume agent |
+| 3 | Jan 22, 2025 | JD Matching | TechSalesJDMatcher, frontend |
+| 4 | Jan 22, 2025 | Features 3&4 | Metrics, Writing, Export |
+| 5 | Jan 23, 2025 | Deployment | Railway production deploy |
+| 6 | Jan 22, 2026 | Frontend | WritingPage integration |

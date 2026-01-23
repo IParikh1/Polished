@@ -220,10 +220,33 @@
 | Jan 22, 2025 | 3.5 | Add /extract-metrics and /format-metrics API endpoints |
 | Jan 22, 2025 | 3.6 | Create useMetricsExtraction.ts React Query hook |
 | Jan 22, 2025 | 3.7 | Test metrics flow (33 tests passing) |
+| Jan 22, 2026 | UI.1 | Create WritingPage.tsx with integrated writing components |
+| Jan 22, 2026 | UI.2 | Add /writing route to App.tsx |
+| Jan 22, 2026 | UI.3 | Add Writing navigation item to Layout.tsx |
 
 ---
 
 ## Notes & Decisions
+
+### January 22, 2026 (Session 6)
+- **Frontend Writing Page Complete**
+- Created comprehensive WritingPage.tsx integrating all writing components:
+  - Full Resume Generation - Generate optimized resume for target role
+  - Metrics Extraction - Extract and enhance sales metrics
+  - Section Rewriter - Improve specific resume sections
+- Added /writing route to App.tsx with dynamic batch/resume parameters
+- Added "Writing" navigation item to Layout.tsx sidebar
+- UI features:
+  - Batch/Resume selection flow
+  - Target role selection with SalesRoleSelector
+  - Optional job description input
+  - Mode selection cards with clear descriptions
+  - Resume overview stats
+  - Writing tips and power words panels
+- All components properly integrated with existing hooks:
+  - useResumeWriting for generation
+  - useMetricsExtraction for metrics
+  - useBatches and useBatchResumes for selection
 
 ### January 23, 2025 (Session 5)
 - **Railway Deployment Complete**
@@ -386,9 +409,9 @@
 11. [x] ~~Complete Feature 2: JD Matching (all tasks 2.1-2.11)~~
 12. [x] ~~Complete Feature 4: Resume Writing & Export (all tasks 4.1-4.10)~~
 13. [x] ~~Complete Feature 3: Metrics Extraction (all tasks 3.1-3.7)~~
-14. [ ] Test deployment E2E on Railway
+14. [x] ~~Test deployment E2E on Railway~~ (Completed Jan 23, 2025)
 15. [ ] Set up ANTHROPIC_API_KEY for LLM-powered features
-16. [ ] Create frontend page integrating all writing components
+16. [x] ~~Create frontend page integrating all writing components~~ (Completed Jan 22, 2026)
 
 ---
 

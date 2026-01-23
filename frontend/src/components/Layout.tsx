@@ -1,10 +1,11 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { FileText, MessageSquare, BarChart3, Settings, Menu, X } from 'lucide-react'
+import { FileText, MessageSquare, BarChart3, Settings, Menu, X, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
 
 const navigation = [
   { name: 'Batches', href: '/batches', icon: FileText },
+  { name: 'Writing', href: '/writing', icon: Sparkles },
   { name: 'Consulting', href: '/consulting', icon: MessageSquare },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
