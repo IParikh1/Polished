@@ -131,7 +131,8 @@ class AWSStore:
         batch_id: str,
         filename: str,
         file_content: Optional[Union[bytes, BinaryIO]] = None,
-        content_type: Optional[str] = None
+        content_type: Optional[str] = None,
+        target_role: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Add a resume to a batch.
@@ -160,6 +161,9 @@ class AWSStore:
             "s3_key": s3_key,
             "status": ResumeStatus.PENDING.value if s3_key else ResumeStatus.UPLOADING.value,
         }
+
+        if target_role:
+            resume_data["target_role"] = target_role
 
         resume = self.db.add_resume_to_batch(resume_data)
 
