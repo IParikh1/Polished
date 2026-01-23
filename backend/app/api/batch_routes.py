@@ -573,6 +573,11 @@ async def get_rankings(
     # Convert to response format
     resume_responses = []
     for r in resumes:
+        # Handle empty scores dict - convert to None if empty or missing 'overall'
+        scores_data = r.get("scores")
+        if not scores_data or "overall" not in scores_data:
+            scores_data = None
+
         resume_responses.append(ResumeResponse(
             resume_id=r["resume_id"],
             batch_id=r["batch_id"],
@@ -581,8 +586,8 @@ async def get_rankings(
             created_at=datetime.fromisoformat(r["created_at"]),
             updated_at=datetime.fromisoformat(r["updated_at"]),
             rank=r.get("rank"),
-            scores=r.get("scores"),
-            extracted_data=r.get("extracted_data"),
+            scores=scores_data,
+            extracted_data=r.get("extracted_data") or None,
             jd_match=r.get("jd_match_details"),
             deep_analysis=r.get("deep_analysis"),
         ))
