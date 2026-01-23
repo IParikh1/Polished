@@ -1,6 +1,6 @@
 # Polished Tech Sales Features - Progress Tracker
 
-**Last Updated:** January 22, 2026 (Session 7)
+**Last Updated:** January 22, 2026 (Session 8)
 **Overall Status:** 🟢 Features Complete - Ready for Pilot
 
 ---
@@ -227,10 +227,32 @@
 | Jan 22, 2026 | UI.5 | Create SettingsPage.tsx with API key management |
 | Jan 22, 2026 | UI.6 | Add /analytics and /settings routes to App.tsx |
 | Jan 22, 2026 | T.1 | Add backend test files to git repository |
+| Jan 22, 2026 | T.2 | Fix TypeScript build errors for Vercel deployment |
+| Jan 22, 2026 | T.3 | Add live LLM status display to Settings page |
+| Jan 22, 2026 | LLM.1 | Confirm ANTHROPIC_API_KEY configured on Railway |
 
 ---
 
 ## Notes & Decisions
+
+### January 22, 2026 (Session 8)
+- **TypeScript Build Fixes & LLM Status Integration**
+- Fixed all TypeScript build errors preventing Vercel deployment:
+  - Removed unused imports: ChevronDown, FileText (JDMatcher), AlertTriangle (MatchResults), Eye (RankingTable), Send (ConsultingPage)
+  - Fixed unused variables with underscore prefix: sessionId (ConsultingChat), onComplete (ResumeWriter)
+  - Removed unused imports: X, MissingMetric (MetricsExtractor), useQueryClient (useRankings)
+  - Fixed useUpload hook to accept targetRole parameter for role-aware uploads
+  - Fixed ScoreBreakdown scores type inference (added overall: 0 default)
+  - Fixed useBatches refetchInterval callback for React Query v5 (query.state.data)
+  - Added missing deep_analysis properties to Resume type (red_flags, interview_questions, growth_potential)
+- Updated Settings page to show live LLM status from backend:
+  - Replaced static API key input with dynamic status display
+  - Shows real-time status from /api/v1/config/llm-status endpoint
+  - Displays API key prefix (masked), feature availability grid
+  - Shows Resume Writer and Metrics Extraction service status
+  - Includes refresh button and error handling
+- Confirmed ANTHROPIC_API_KEY is already configured on Railway (llm_enabled: true)
+- All changes pushed to GitHub (commit 4cbb29d), Vercel auto-deploying
 
 ### January 22, 2026 (Session 7)
 - **Analytics & Settings Pages Complete**
@@ -437,7 +459,7 @@
 12. [x] ~~Complete Feature 4: Resume Writing & Export (all tasks 4.1-4.10)~~
 13. [x] ~~Complete Feature 3: Metrics Extraction (all tasks 3.1-3.7)~~
 14. [x] ~~Test deployment E2E on Railway~~ (Completed Jan 23, 2025)
-15. [ ] Set up ANTHROPIC_API_KEY for LLM-powered features
+15. [x] ~~Set up ANTHROPIC_API_KEY for LLM-powered features~~ (Completed Jan 22, 2026 - Already configured on Railway)
 16. [x] ~~Create frontend page integrating all writing components~~ (Completed Jan 22, 2026)
 17. [x] ~~Create Analytics dashboard page~~ (Completed Jan 22, 2026)
 18. [x] ~~Create Settings page with API key management~~ (Completed Jan 22, 2026)
