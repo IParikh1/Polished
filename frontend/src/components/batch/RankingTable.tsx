@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Eye, Download, Star, Target, Sparkles } from 'lucide-react'
+import { ChevronDown, ChevronUp, Download, Star, Target, Sparkles } from 'lucide-react'
 import type { Resume } from '../../api/batchClient'
 import ScoreBreakdown from './ScoreBreakdown'
 import DeepAnalysisModal from './DeepAnalysisModal'

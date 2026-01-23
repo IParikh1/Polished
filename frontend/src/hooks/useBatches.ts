@@ -67,9 +67,9 @@ export function useProcessingStatus(batchId: string | undefined, enabled = true)
     queryKey: ['processing-status', batchId],
     queryFn: () => batchApi.getProcessingStatus(batchId!),
     enabled: enabled && !!batchId,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Poll every 2 seconds while processing
-      if (data?.status === 'processing') {
+      if (query.state.data?.status === 'processing') {
         return 2000
       }
       return false

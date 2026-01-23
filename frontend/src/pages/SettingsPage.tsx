@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Settings,
   Key,
@@ -10,14 +10,16 @@ import {
   Zap,
   Check,
   X,
-  Eye,
-  EyeOff,
   Save,
   Loader2,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  RefreshCw
 } from 'lucide-react'
 import clsx from 'clsx'
+import { getLLMConfigStatus, type LLMConfigStatus } from '../api/batchClient'
 
 interface SettingsSectionProps {
   title: string
@@ -76,11 +78,28 @@ function Toggle({ enabled, onToggle, label, description }: ToggleProps) {
 }
 
 export default function SettingsPage() {
-  // API Settings
-  const [anthropicKey, setAnthropicKey] = useState('')
-  const [showAnthropicKey, setShowAnthropicKey] = useState(false)
-  const [apiSaving, setApiSaving] = useState(false)
-  const [apiSaved, setApiSaved] = useState(false)
+  // LLM Status
+  const [llmStatus, setLlmStatus] = useState<LLMConfigStatus | null>(null)
+  const [llmLoading, setLlmLoading] = useState(true)
+  const [llmError, setLlmError] = useState<string | null>(null)
+
+  const fetchLLMStatus = async () => {
+    setLlmLoading(true)
+    setLlmError(null)
+    try {
+      const status = await getLLMConfigStatus()
+      setLlmStatus(status)
+    } catch (err) {
+      setLlmError('Failed to fetch LLM status')
+      console.error('LLM status error:', err)
+    } finally {
+      setLlmLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchLLMStatus()
+  }, [])
 
   // Notification Settings
   const [emailNotifications, setEmailNotifications] = useState(true)
@@ -103,14 +122,6 @@ export default function SettingsPage() {
   const [includeScoresInExport, setIncludeScoresInExport] = useState(true)
   const [includeAnalysisInExport, setIncludeAnalysisInExport] = useState(false)
 
-  const handleSaveApiKey = async () => {
-    setApiSaving(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setApiSaving(false)
-    setApiSaved(true)
-    setTimeout(() => setApiSaved(false), 3000)
-  }
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -120,72 +131,169 @@ export default function SettingsPage() {
         <p className="text-gray-600">Manage your account and application preferences</p>
       </div>
 
-      {/* API Configuration */}
+      {/* AI Service Status */}
       <SettingsSection
-        title="API Configuration"
-        description="Configure your AI service API keys for enhanced features"
+        title="AI Service Status"
+        description="View the status of AI-powered features"
         icon={Key}
       >
         <div className="space-y-4">
-          <div>
-            <label className="label">Anthropic API Key</label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <input
-                  type={showAnthropicKey ? 'text' : 'password'}
-                  value={anthropicKey}
-                  onChange={(e) => setAnthropicKey(e.target.value)}
-                  placeholder="sk-ant-api03-..."
-                  className="input pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowAnthropicKey(!showAnthropicKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showAnthropicKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <button
-                onClick={handleSaveApiKey}
-                disabled={apiSaving || !anthropicKey}
-                className="btn-primary gap-2"
-              >
-                {apiSaving ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : apiSaved ? (
-                  <Check className="w-4 h-4" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                {apiSaved ? 'Saved' : 'Save'}
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Required for AI-powered resume writing and deep analysis features.{' '}
-              <a
-                href="https://console.anthropic.com/account/keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-600 hover:underline inline-flex items-center gap-1"
-              >
-                Get your API key <ExternalLink className="w-3 h-3" />
-              </a>
-            </p>
-          </div>
-
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          {/* Status Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {llmLoading ? (
+                <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+              ) : llmStatus?.llm_configured ? (
+                <CheckCircle2 className="w-5 h-5 text-success-500" />
+              ) : (
+                <XCircle className="w-5 h-5 text-danger-500" />
+              )}
               <div>
-                <p className="text-sm font-medium text-amber-800">API Key Security</p>
-                <p className="text-xs text-amber-700 mt-1">
-                  Your API key is stored securely and encrypted. It is only used for processing requests
-                  and is never shared with third parties.
+                <p className="font-medium text-gray-900">
+                  {llmLoading ? 'Checking...' : llmStatus?.llm_configured ? 'AI Services Active' : 'AI Services Unavailable'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {llmLoading ? 'Fetching status...' : llmStatus?.llm_configured
+                    ? `API Key: ${llmStatus.api_key_prefix || 'Configured'}`
+                    : 'API key not configured'
+                  }
                 </p>
               </div>
             </div>
+            <button
+              onClick={fetchLLMStatus}
+              disabled={llmLoading}
+              className="btn-secondary text-sm gap-2"
+            >
+              <RefreshCw className={clsx('w-4 h-4', llmLoading && 'animate-spin')} />
+              Refresh
+            </button>
           </div>
+
+          {/* Error State */}
+          {llmError && (
+            <div className="p-3 bg-danger-50 border border-danger-200 rounded-lg">
+              <div className="flex items-center gap-2 text-danger-700">
+                <AlertCircle className="w-4 h-4" />
+                <span className="text-sm">{llmError}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Feature Status Grid */}
+          {llmStatus && !llmLoading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+              <div className={clsx(
+                'p-3 rounded-lg border',
+                llmStatus.services.resume_writer.available
+                  ? 'bg-success-50 border-success-200'
+                  : 'bg-gray-50 border-gray-200'
+              )}>
+                <div className="flex items-center gap-2 mb-2">
+                  {llmStatus.services.resume_writer.available ? (
+                    <Check className="w-4 h-4 text-success-600" />
+                  ) : (
+                    <X className="w-4 h-4 text-gray-400" />
+                  )}
+                  <span className="text-sm font-medium text-gray-900">Resume Writing</span>
+                </div>
+                <ul className="text-xs text-gray-600 space-y-1 ml-6">
+                  <li className="flex items-center gap-1">
+                    {llmStatus.services.resume_writer.features?.full_resume_generation ? (
+                      <Check className="w-3 h-3 text-success-500" />
+                    ) : (
+                      <X className="w-3 h-3 text-gray-300" />
+                    )}
+                    Full resume generation
+                  </li>
+                  <li className="flex items-center gap-1">
+                    {llmStatus.services.resume_writer.features?.section_rewriting ? (
+                      <Check className="w-3 h-3 text-success-500" />
+                    ) : (
+                      <X className="w-3 h-3 text-gray-300" />
+                    )}
+                    Section rewriting
+                  </li>
+                  <li className="flex items-center gap-1">
+                    {llmStatus.services.resume_writer.features?.bullet_enhancement ? (
+                      <Check className="w-3 h-3 text-success-500" />
+                    ) : (
+                      <X className="w-3 h-3 text-gray-300" />
+                    )}
+                    Bullet enhancement
+                  </li>
+                </ul>
+              </div>
+
+              <div className={clsx(
+                'p-3 rounded-lg border',
+                llmStatus.services.metrics_extraction.available
+                  ? 'bg-success-50 border-success-200'
+                  : 'bg-gray-50 border-gray-200'
+              )}>
+                <div className="flex items-center gap-2 mb-2">
+                  {llmStatus.services.metrics_extraction.available ? (
+                    <Check className="w-4 h-4 text-success-600" />
+                  ) : (
+                    <X className="w-4 h-4 text-gray-400" />
+                  )}
+                  <span className="text-sm font-medium text-gray-900">Metrics Extraction</span>
+                </div>
+                <ul className="text-xs text-gray-600 space-y-1 ml-6">
+                  <li className="flex items-center gap-1">
+                    <Check className="w-3 h-3 text-success-500" />
+                    Pattern-based extraction
+                  </li>
+                  <li className="flex items-center gap-1">
+                    {llmStatus.services.metrics_extraction.llm_enhanced ? (
+                      <Check className="w-3 h-3 text-success-500" />
+                    ) : (
+                      <X className="w-3 h-3 text-gray-300" />
+                    )}
+                    LLM-enhanced analysis
+                  </li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Help for unconfigured state */}
+          {llmStatus && !llmStatus.llm_configured && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">Administrator Action Required</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    AI features require an Anthropic API key to be configured on the server.
+                    {!llmStatus.anthropic_package_installed && (
+                      <span className="block mt-1">The anthropic package also needs to be installed.</span>
+                    )}
+                  </p>
+                  <a
+                    href={llmStatus.configuration_help.get_key_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-amber-800 hover:underline inline-flex items-center gap-1 mt-2"
+                  >
+                    Get an API key <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Configured state info */}
+          {llmStatus?.llm_configured && (
+            <div className="p-3 bg-success-50 border border-success-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-success-700">
+                  All AI-powered features are active. Resume writing, deep analysis, and intelligent metrics extraction are available.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </SettingsSection>
 

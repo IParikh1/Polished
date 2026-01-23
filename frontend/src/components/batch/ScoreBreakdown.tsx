@@ -8,7 +8,7 @@ interface ScoreBreakdownProps {
 }
 
 export default function ScoreBreakdown({ resume, hasJdMatching }: ScoreBreakdownProps) {
-  const scores = resume.scores || {}
+  const scores = resume.scores || { overall: 0 }
   const extracted = resume.extracted_data || {}
   const jdMatch = resume.jd_match
 

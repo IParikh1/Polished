@@ -1,4 +1,4 @@
-import { CheckCircle2, XCircle, AlertTriangle, Tag, Lightbulb, TrendingUp } from 'lucide-react'
+import { CheckCircle2, XCircle, Tag, Lightbulb, TrendingUp } from 'lucide-react'
 import clsx from 'clsx'
 import type { JDMatchResult } from './JDMatcher'
 

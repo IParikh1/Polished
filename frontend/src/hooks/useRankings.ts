@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import * as batchApi from '../api/batchClient'
 
 export function useBatchResumes(batchId: string | undefined, includeDownloadUrls = false) {

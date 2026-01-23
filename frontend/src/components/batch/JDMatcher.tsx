@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Target, Sparkles, Loader2, ChevronDown, ChevronUp, FileText } from 'lucide-react'
+import { Target, Sparkles, Loader2, ChevronUp } from 'lucide-react'
 import { useMatchJD } from '../../hooks/useJDMatching'
 import MatchResults from './MatchResults'
 import type { SalesRole } from '../../api/batchClient'

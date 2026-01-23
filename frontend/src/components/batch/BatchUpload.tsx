@@ -19,7 +19,7 @@ const ACCEPTED_TYPES = {
 }
 
 export default function BatchUpload({ batchId, showRoleSelector = true }: BatchUploadProps) {
-  const { isUploading, uploadedCount, totalCount, errors, upload, reset, isLoading } = useUpload(batchId)
+  const { uploadedCount, totalCount, errors, upload, reset, isLoading } = useUpload(batchId)
   const [targetRole, setTargetRole] = useState<SalesRole | null>(null)
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
 

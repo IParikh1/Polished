@@ -11,7 +11,7 @@ interface ConsultingChatProps {
 }
 
 export default function ConsultingChat({
-  sessionId,
+  sessionId: _sessionId,
   messages,
   onSend,
   isLoading,

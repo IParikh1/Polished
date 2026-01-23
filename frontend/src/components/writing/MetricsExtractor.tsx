@@ -7,11 +7,10 @@ import {
   ChevronRight,
   Loader2,
   Sparkles,
-  X,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useExtractMetrics, useFormatMetrics } from '../../hooks/useMetricsExtraction'
-import type { SalesRole, MissingMetric } from '../../api/batchClient'
+import type { SalesRole } from '../../api/batchClient'
 
 interface MetricsExtractorProps {
   batchId: string

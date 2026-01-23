@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import * as batchApi from '../api/batchClient'
+import type { SalesRole } from '../api/batchClient'
 
 export interface UploadState {
   isUploading: boolean
@@ -21,7 +22,8 @@ export function useUpload(batchId: string) {
   })
 
   const uploadMutation = useMutation({
-    mutationFn: (files: File[]) => batchApi.uploadMultipleResumes(batchId, files),
+    mutationFn: ({ files, targetRole }: { files: File[]; targetRole?: SalesRole }) =>
+      batchApi.uploadMultipleResumes(batchId, files, targetRole),
     onSuccess: (data) => {
       setState((prev) => ({
         ...prev,
@@ -44,7 +46,7 @@ export function useUpload(batchId: string) {
   })
 
   const upload = useCallback(
-    (files: File[]) => {
+    (files: File[], targetRole?: SalesRole) => {
       setState({
         isUploading: true,
         progress: 0,
@@ -52,7 +54,7 @@ export function useUpload(batchId: string) {
         totalCount: files.length,
         errors: [],
       })
-      uploadMutation.mutate(files)
+      uploadMutation.mutate({ files, targetRole })
     },
     [uploadMutation]
   )

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { MessageSquare, Sparkles, RefreshCw, Send, Loader2, ArrowLeft } from 'lucide-react'
+import { MessageSquare, Sparkles, RefreshCw, Loader2, ArrowLeft } from 'lucide-react'
 import {
   useConsultingSession,
   useCreateSession,

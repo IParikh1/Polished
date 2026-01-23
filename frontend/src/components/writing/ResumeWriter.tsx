@@ -35,7 +35,7 @@ export default function ResumeWriter({
   resumeId,
   initialRole,
   extractedData,
-  onComplete,
+  onComplete: _onComplete,
 }: ResumeWriterProps) {
   const [targetRole, setTargetRole] = useState<SalesRole | null>(initialRole || null)
   const [template, setTemplate] = useState<ResumeTemplate>('modern')

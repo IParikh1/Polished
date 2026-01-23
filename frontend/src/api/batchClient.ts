@@ -59,6 +59,9 @@ export interface Resume {
     weaknesses: string[]
     recommendations: string[]
     overall_assessment?: string
+    red_flags?: string[]
+    interview_questions?: string[]
+    growth_potential?: string
   }
   download_url?: string
 }
@@ -600,6 +603,40 @@ export async function formatMetrics(request: MetricsFormatRequest): Promise<Metr
       target_role: request.target_role,
     },
   })
+  return response.data
+}
+
+// ==================== LLM Configuration Status API ====================
+
+export interface LLMServiceStatus {
+  available: boolean
+  features?: {
+    full_resume_generation: boolean
+    section_rewriting: boolean
+    summary_generation: boolean
+    bullet_enhancement: boolean
+  }
+  llm_enhanced?: boolean
+}
+
+export interface LLMConfigStatus {
+  llm_configured: boolean
+  api_key_set: boolean
+  api_key_prefix: string | null
+  anthropic_package_installed: boolean
+  services: {
+    resume_writer: LLMServiceStatus
+    metrics_extraction: LLMServiceStatus
+  }
+  configuration_help: {
+    railway: string
+    local: string
+    get_key_url: string
+  }
+}
+
+export async function getLLMConfigStatus(): Promise<LLMConfigStatus> {
+  const response = await api.get<LLMConfigStatus>('/config/llm-status')
   return response.data
 }
 
