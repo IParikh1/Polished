@@ -14,6 +14,7 @@ from datetime import datetime
 from .api.batch_routes import router as batch_router
 from .api.placement_routes import router as placement_router
 from .api.consult_routes import router as consult_router
+from .api.resume_routes import router as resume_router
 from .services.batch_cache import get_cache
 from .services.premium_gate import get_premium_gate
 
@@ -35,6 +36,7 @@ A scalable resume sorting and ranking system with tiered features.
 - **JD Matching**: Match resumes against job descriptions
 - **Deep Analysis**: Comprehensive LLM-powered resume analysis
 - **Resume Consulting**: AI-powered rewrite suggestions
+- **Resume Writing**: AI-powered resume generation with document export (PDF/DOCX)
 
 ### Revenue
 - Placement tracking with $250 per verified placement
@@ -168,6 +170,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.include_router(batch_router, prefix="/api/v1")
 app.include_router(placement_router, prefix="/api/v1")
 app.include_router(consult_router, prefix="/api/v1")
+app.include_router(resume_router, prefix="/api/v1")
 
 
 # Health check endpoint
@@ -215,6 +218,7 @@ async def api_info():
             "batches": "/api/v1/batches",
             "placements": "/api/v1/placements",
             "consulting": "/api/v1/consulting",
+            "resume": "/api/v1/resume",
         },
         "documentation": "/docs",
     }

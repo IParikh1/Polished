@@ -9,6 +9,16 @@ from enum import Enum
 import uuid
 
 
+class SalesRole(str, Enum):
+    """Target sales role for resume optimization."""
+    ENTRY_SDR = "entry_sdr"
+    SDR = "sdr"
+    ACCOUNT_EXECUTIVE = "account_executive"
+    SENIOR_AE = "senior_ae"
+    ACCOUNT_MANAGER = "account_manager"
+    SALES_MANAGER = "sales_manager"
+
+
 class BatchStatus(str, Enum):
     """Batch processing status."""
     PENDING = "pending"
@@ -66,6 +76,7 @@ class ResumeUploadRequest(BaseModel):
     """Request to upload a resume to a batch."""
     filename: str = Field(..., min_length=1, max_length=500, description="Original filename")
     content_type: Optional[str] = Field(None, description="MIME type")
+    target_role: Optional[SalesRole] = Field(None, description="Target sales role for optimization")
 
     @validator("filename")
     def validate_filename(cls, v):
@@ -313,6 +324,270 @@ class PlacementStatsResponse(BaseModel):
     disputed: int
     total_revenue: float
     pending_revenue: float
+
+
+# ==================== JD Matching Schemas (Tech Sales) ====================
+
+class JDMatchRequest(BaseModel):
+    """Request to match resume against a job description."""
+    session_id: Optional[str] = Field(None, description="Session ID if using session-based flow")
+    resume_id: Optional[str] = Field(None, description="Resume ID for batch-based flow")
+    batch_id: Optional[str] = Field(None, description="Batch ID for batch-based flow")
+    job_description: str = Field(..., min_length=50, description="Full job description text")
+    job_url: Optional[str] = Field(None, description="URL of job posting")
+    job_title: Optional[str] = Field(None, max_length=200, description="Job title")
+    company: Optional[str] = Field(None, max_length=200, description="Company name")
+    target_role: Optional[SalesRole] = Field(None, description="Target sales role")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "resume_id": "resume-abc123",
+                "batch_id": "batch-xyz789",
+                "job_description": "We are looking for an Account Executive with 3+ years of SaaS sales experience...",
+                "job_title": "Account Executive",
+                "company": "Acme SaaS Inc",
+                "target_role": "account_executive"
+            }
+        }
+
+
+class JDMatchResult(BaseModel):
+    """Result of JD matching analysis."""
+    match_score: int = Field(..., ge=0, le=100, description="Overall match score 0-100")
+    matching_requirements: List[str] = Field(default_factory=list, description="Requirements that match")
+    gaps: List[str] = Field(default_factory=list, description="Missing requirements or gaps")
+    keywords_to_add: List[str] = Field(default_factory=list, description="Keywords to add to resume")
+    keywords_present: List[str] = Field(default_factory=list, description="Keywords already in resume")
+    tailored_suggestions: List[str] = Field(default_factory=list, description="Specific improvement suggestions")
+    experience_match: bool = Field(False, description="Whether experience level matches")
+    skills_alignment: Optional[Dict[str, bool]] = Field(None, description="Skill-by-skill alignment")
+
+
+class TailoredResumeRequest(BaseModel):
+    """Request to generate a JD-tailored resume."""
+    session_id: Optional[str] = Field(None, description="Session ID")
+    resume_id: Optional[str] = Field(None, description="Resume ID")
+    batch_id: Optional[str] = Field(None, description="Batch ID")
+    job_description: str = Field(..., min_length=50, description="Job description to tailor for")
+    target_role: Optional[SalesRole] = Field(None, description="Target sales role")
+    prioritize_gaps: bool = Field(True, description="Prioritize addressing gaps")
+    include_metrics_prompts: bool = Field(True, description="Include prompts for missing metrics")
+
+
+class TailoredResumeResponse(BaseModel):
+    """Response with tailored resume content."""
+    tailored_resume: str = Field(..., description="Full tailored resume text")
+    changes_made: List[str] = Field(default_factory=list, description="List of changes applied")
+    metrics_needed: List[Dict[str, Any]] = Field(default_factory=list, description="Metrics questions to improve resume")
+    match_improvement: Optional[int] = Field(None, description="Estimated score improvement")
+
+
+class SetRoleRequest(BaseModel):
+    """Request to set target role for a session/resume."""
+    session_id: Optional[str] = Field(None, description="Session ID")
+    resume_id: Optional[str] = Field(None, description="Resume ID")
+    batch_id: Optional[str] = Field(None, description="Batch ID")
+    role: SalesRole = Field(..., description="Target sales role")
+
+
+class SetRoleResponse(BaseModel):
+    """Response confirming role was set."""
+    message: str = "Role updated successfully"
+    role: SalesRole
+    role_display_name: str = Field(..., description="Human-readable role name")
+
+
+# ==================== Metrics Extraction Schemas ====================
+
+class MetricsQuestion(BaseModel):
+    """A question to gather missing metrics from user."""
+    company: str = Field(..., description="Company this metric relates to")
+    role: str = Field(..., description="Role at that company")
+    metric_type: str = Field(..., description="Type of metric (quota, revenue, etc)")
+    question: str = Field(..., description="Question to ask user")
+    priority: int = Field(1, ge=1, le=5, description="Priority 1-5, 1 being highest")
+
+
+class MetricsExtractionResult(BaseModel):
+    """Result of metrics extraction from resume."""
+    metrics_found: Dict[str, str] = Field(default_factory=dict, description="Metrics found in resume")
+    metrics_missing: List[MetricsQuestion] = Field(default_factory=list, description="Missing metrics with questions")
+    overall_metrics_score: int = Field(..., ge=0, le=100, description="How well resume quantifies achievements")
+
+
+class MetricsSubmission(BaseModel):
+    """User submission of collected metrics."""
+    session_id: Optional[str] = None
+    resume_id: Optional[str] = None
+    batch_id: Optional[str] = None
+    metrics: Dict[str, Dict[str, Any]] = Field(..., description="Metrics by company: {company: {metric_type: value}}")
+
+
+# ==================== Resume Writing Schemas ====================
+
+class ResumeTemplate(str, Enum):
+    """Available resume templates."""
+    MODERN = "modern"
+    CLASSIC = "classic"
+    ATS_FRIENDLY = "ats_friendly"
+    EXECUTIVE = "executive"
+    MINIMAL = "minimal"
+
+
+class DocumentFormat(str, Enum):
+    """Supported document formats."""
+    PDF = "pdf"
+    DOCX = "docx"
+    TXT = "txt"
+    HTML = "html"
+
+
+class ExperienceEntry(BaseModel):
+    """Experience entry for resume generation."""
+    company: str
+    title: str
+    dates: Optional[str] = None
+    location: Optional[str] = None
+    bullets: List[str] = Field(default_factory=list)
+
+
+class EducationEntry(BaseModel):
+    """Education entry for resume generation."""
+    school: str
+    degree: Optional[str] = None
+    field: Optional[str] = None
+    year: Optional[str] = None
+    gpa: Optional[str] = None
+
+
+class ResumeGenerateRequest(BaseModel):
+    """Request to generate an optimized resume."""
+    resume_id: Optional[str] = Field(None, description="Resume ID for batch-based flow")
+    batch_id: Optional[str] = Field(None, description="Batch ID for batch-based flow")
+    session_id: Optional[str] = Field(None, description="Session ID for session-based flow")
+    target_role: SalesRole = Field(..., description="Target sales role")
+    job_description: Optional[str] = Field(None, description="Optional JD to tailor for")
+    metrics: Optional[Dict[str, Dict[str, Any]]] = Field(None, description="Collected metrics by company")
+    template: ResumeTemplate = Field(ResumeTemplate.MODERN, description="Resume template style")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "resume_id": "resume-abc123",
+                "batch_id": "batch-xyz789",
+                "target_role": "account_executive",
+                "template": "modern",
+                "metrics": {
+                    "Acme Corp": {
+                        "quota_attainment": "135%",
+                        "deals_closed": "45",
+                        "avg_deal_size": "$85K"
+                    }
+                }
+            }
+        }
+
+
+class ResumeGenerateResponse(BaseModel):
+    """Response with generated resume content."""
+    resume_text: str = Field(..., description="Full generated resume text")
+    sections: Dict[str, str] = Field(default_factory=dict, description="Resume sections by name")
+    changes_made: List[str] = Field(default_factory=list, description="Changes applied from original")
+    keywords_added: List[str] = Field(default_factory=list, description="Keywords incorporated")
+    suggestions: List[str] = Field(default_factory=list, description="Further improvement suggestions")
+    template: ResumeTemplate = Field(ResumeTemplate.MODERN)
+    estimated_match_improvement: Optional[int] = Field(None, description="Estimated score improvement if JD provided")
+
+
+class RewriteSectionRequest(BaseModel):
+    """Request to rewrite a specific resume section."""
+    resume_id: Optional[str] = None
+    batch_id: Optional[str] = None
+    session_id: Optional[str] = None
+    section_name: str = Field(..., description="Section to rewrite: summary, experience, skills, education")
+    section_content: str = Field(..., description="Current section content")
+    target_role: SalesRole = Field(..., description="Target sales role")
+    context: Optional[str] = Field(None, description="Additional context for rewrite")
+    job_description: Optional[str] = Field(None, description="Optional JD for tailoring")
+
+
+class RewriteSectionResponse(BaseModel):
+    """Response with rewritten section."""
+    section_name: str
+    original: str
+    rewritten: str
+    changes: List[str] = Field(default_factory=list)
+    improvement_score: int = Field(0, ge=0, le=100)
+
+
+class GenerateSummaryRequest(BaseModel):
+    """Request to generate a professional summary."""
+    resume_id: Optional[str] = None
+    batch_id: Optional[str] = None
+    session_id: Optional[str] = None
+    target_role: SalesRole = Field(..., description="Target sales role")
+    job_description: Optional[str] = Field(None, description="Optional JD for tailoring")
+    tone: str = Field("professional", description="Tone: professional, confident, dynamic")
+
+
+class GenerateSummaryResponse(BaseModel):
+    """Response with generated summary variants."""
+    standard: str = Field(..., description="Standard professional summary")
+    confident: str = Field(..., description="Bold, achievement-focused variant")
+    dynamic: str = Field(..., description="Energetic, growth-oriented variant")
+
+
+class EnhanceBulletsRequest(BaseModel):
+    """Request to enhance experience bullet points."""
+    resume_id: Optional[str] = None
+    batch_id: Optional[str] = None
+    bullets: List[str] = Field(..., min_length=1, description="Bullet points to enhance")
+    target_role: SalesRole = Field(..., description="Target sales role")
+    company_context: Optional[str] = Field(None, description="Context about the company/role")
+
+
+class EnhancedBullet(BaseModel):
+    """Enhanced bullet point result."""
+    original: str
+    enhanced: str
+    needs_metrics: bool = Field(False, description="Whether this bullet needs specific metrics")
+
+
+class EnhanceBulletsResponse(BaseModel):
+    """Response with enhanced bullet points."""
+    bullets: List[EnhancedBullet]
+    metrics_questions: List[str] = Field(default_factory=list, description="Questions to gather missing metrics")
+
+
+class ExportResumeRequest(BaseModel):
+    """Request to export resume to document format."""
+    resume_id: Optional[str] = None
+    batch_id: Optional[str] = None
+    session_id: Optional[str] = None
+    resume_text: Optional[str] = Field(None, description="Generated resume text to export")
+    format: DocumentFormat = Field(DocumentFormat.PDF, description="Output format")
+    template: ResumeTemplate = Field(ResumeTemplate.MODERN, description="Template style")
+    # Structured data for document generation
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    linkedin: Optional[str] = None
+    summary: Optional[str] = None
+    experience: Optional[List[ExperienceEntry]] = None
+    education: Optional[List[EducationEntry]] = None
+    skills: Optional[List[str]] = None
+    certifications: Optional[List[str]] = None
+
+
+class ExportResumeResponse(BaseModel):
+    """Response with exported document."""
+    download_url: str = Field(..., description="URL to download the generated document")
+    format: DocumentFormat
+    filename: str
+    expires_at: datetime
+    file_size_bytes: Optional[int] = None
 
 
 # ==================== Error Schemas ====================

@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Eye, Download, Star, Target, Sparkles } from 'l
 import type { Resume } from '../../api/batchClient'
 import ScoreBreakdown from './ScoreBreakdown'
 import DeepAnalysisModal from './DeepAnalysisModal'
+import JDMatcherModal from './JDMatcherModal'
 import clsx from 'clsx'
 
 interface RankingTableProps {
@@ -14,6 +15,7 @@ interface RankingTableProps {
 export default function RankingTable({ resumes, batchId, hasJdMatching }: RankingTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null)
+  const [jdMatchResume, setJdMatchResume] = useState<Resume | null>(null)
 
   const getScoreColor = (score: number | undefined) => {
     if (!score) return 'text-gray-400'
@@ -142,6 +144,13 @@ export default function RankingTable({ resumes, batchId, hasJdMatching }: Rankin
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setJdMatchResume(resume)}
+                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title="Match Against Job Description"
+                      >
+                        <Target className="w-4 h-4" />
+                      </button>
                       {resume.deep_analysis && (
                         <button
                           onClick={() => setSelectedResume(resume)}
@@ -196,6 +205,15 @@ export default function RankingTable({ resumes, batchId, hasJdMatching }: Rankin
         <DeepAnalysisModal
           resume={selectedResume}
           onClose={() => setSelectedResume(null)}
+        />
+      )}
+
+      {/* JD Matcher Modal */}
+      {jdMatchResume && (
+        <JDMatcherModal
+          batchId={batchId}
+          resume={jdMatchResume}
+          onClose={() => setJdMatchResume(null)}
         />
       )}
     </>

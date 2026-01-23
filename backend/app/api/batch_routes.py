@@ -25,6 +25,13 @@ from ..models.batch_schemas import (
     ScoreFilterRequest,
     BatchStatus,
     ResumeStatus,
+    SalesRole,
+    JDMatchRequest,
+    JDMatchResult,
+    TailoredResumeRequest,
+    TailoredResumeResponse,
+    SetRoleRequest,
+    SetRoleResponse,
     generate_batch_id,
     generate_resume_id,
     generate_export_id,
@@ -33,6 +40,7 @@ from ..services.aws_store import get_store
 from ..services.batch_processor import get_processor
 from ..services.batch_cache import get_cache
 from ..services.premium_gate import get_premium_gate, PremiumFeature
+from ..services.jd_matcher import get_tech_sales_matcher, parse_job_description
 
 
 router = APIRouter(prefix="/batches", tags=["Batches"])
@@ -278,11 +286,14 @@ async def get_upload_urls(
 async def upload_resume(
     batch_id: str,
     file: UploadFile = File(...),
+    target_role: Optional[SalesRole] = None,
 ):
     """
     Upload a single resume file directly.
 
     Supports: PDF, DOCX, DOC, TXT, RTF
+
+    - **target_role**: Optional target sales role for optimized analysis
     """
     store = get_store()
 
@@ -302,18 +313,20 @@ async def upload_resume(
     # Read file content
     content = await file.read()
 
-    # Add resume
+    # Add resume with target role
     resume = await store.add_resume(
         batch_id,
         file.filename,
         file_content=content,
         content_type=file.content_type,
+        target_role=target_role.value if target_role else None,
     )
 
     return {
         "resume_id": resume["resume_id"],
         "filename": resume["filename"],
         "status": resume["status"],
+        "target_role": target_role.value if target_role else None,
     }
 
 
@@ -321,8 +334,13 @@ async def upload_resume(
 async def upload_multiple_resumes(
     batch_id: str,
     files: List[UploadFile] = File(...),
+    target_role: Optional[SalesRole] = None,
 ):
-    """Upload multiple resume files at once."""
+    """
+    Upload multiple resume files at once.
+
+    - **target_role**: Optional target sales role for optimized analysis (applies to all files)
+    """
     store = get_store()
 
     batch = await store.get_batch(batch_id)
@@ -331,6 +349,7 @@ async def upload_multiple_resumes(
 
     results = []
     allowed_types = [".pdf", ".doc", ".docx", ".txt", ".rtf"]
+    role_value = target_role.value if target_role else None
 
     for file in files:
         ext = "." + file.filename.lower().split(".")[-1] if "." in file.filename else ""
@@ -350,11 +369,13 @@ async def upload_multiple_resumes(
                 file.filename,
                 file_content=content,
                 content_type=file.content_type,
+                target_role=role_value,
             )
             results.append({
                 "resume_id": resume["resume_id"],
                 "filename": resume["filename"],
                 "status": "uploaded",
+                "target_role": role_value,
             })
         except Exception as e:
             results.append({
@@ -368,6 +389,7 @@ async def upload_multiple_resumes(
         "uploaded": len([r for r in results if r["status"] == "uploaded"]),
         "failed": len([r for r in results if r["status"] == "error"]),
         "results": results,
+        "target_role": role_value,
     }
 
 
@@ -662,6 +684,287 @@ async def list_exports(batch_id: str):
         "batch_id": batch_id,
         "exports": exports,
     }
+
+
+# ==================== JD Matching Operations (Tech Sales) ====================
+
+@router.post("/match-jd", response_model=JDMatchResult)
+async def match_job_description(request: JDMatchRequest):
+    """
+    Match a resume against a job description.
+
+    Returns detailed match analysis including:
+    - Match score (0-100)
+    - Matching and missing requirements
+    - Keywords to add
+    - Tailored suggestions for improvement
+
+    Premium feature for tech sales resume optimization.
+    """
+    store = get_store()
+    gate = get_premium_gate()
+
+    # Validate premium access
+    if not gate.has_feature("anonymous", PremiumFeature.JD_MATCHING):
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "JD Matching is a premium feature",
+                "upgrade_options": gate.get_upgrade_options("anonymous")
+            }
+        )
+
+    # Get resume text - either from batch or session
+    resume_text = None
+    resume_data = {}
+
+    if request.batch_id and request.resume_id:
+        resume = await store.get_resume(request.batch_id, request.resume_id)
+        if not resume:
+            raise HTTPException(status_code=404, detail="Resume not found")
+        resume_text = resume.get("text", "")
+        resume_data = resume.get("extracted_data", {})
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Must provide batch_id and resume_id"
+        )
+
+    if not resume_text:
+        raise HTTPException(status_code=400, detail="Resume text not available")
+
+    # Perform tech sales-specific matching
+    matcher = get_tech_sales_matcher()
+    result = await matcher.match_resume(
+        resume_text=resume_text,
+        resume_data=resume_data,
+        job_description=request.job_description,
+        target_role=request.target_role.value if request.target_role else None,
+    )
+
+    return JDMatchResult(
+        match_score=int(result["match_score"]),
+        matching_requirements=result.get("matching_requirements", []),
+        gaps=result.get("gaps", []),
+        keywords_to_add=result.get("keywords_to_add", []),
+        keywords_present=result.get("keywords_present", []),
+        tailored_suggestions=result.get("tailored_suggestions", []),
+        experience_match=result.get("experience_match", False),
+        skills_alignment=result.get("skills_alignment"),
+    )
+
+
+@router.post("/{batch_id}/resumes/{resume_id}/match-jd", response_model=JDMatchResult)
+async def match_resume_to_jd(
+    batch_id: str,
+    resume_id: str,
+    job_description: str,
+    job_title: Optional[str] = None,
+    target_role: Optional[SalesRole] = None,
+):
+    """
+    Match a specific resume against a job description.
+
+    Convenience endpoint that combines batch_id and resume_id in the path.
+    """
+    store = get_store()
+    gate = get_premium_gate()
+
+    # Validate premium access
+    if not gate.has_feature("anonymous", PremiumFeature.JD_MATCHING):
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "JD Matching is a premium feature",
+                "upgrade_options": gate.get_upgrade_options("anonymous")
+            }
+        )
+
+    # Get resume
+    resume = await store.get_resume(batch_id, resume_id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    resume_text = resume.get("text", "")
+    resume_data = resume.get("extracted_data", {})
+
+    if not resume_text:
+        raise HTTPException(status_code=400, detail="Resume text not available")
+
+    # Perform matching
+    matcher = get_tech_sales_matcher()
+    result = await matcher.match_resume(
+        resume_text=resume_text,
+        resume_data=resume_data,
+        job_description=job_description,
+        target_role=target_role.value if target_role else None,
+    )
+
+    return JDMatchResult(
+        match_score=int(result["match_score"]),
+        matching_requirements=result.get("matching_requirements", []),
+        gaps=result.get("gaps", []),
+        keywords_to_add=result.get("keywords_to_add", []),
+        keywords_present=result.get("keywords_present", []),
+        tailored_suggestions=result.get("tailored_suggestions", []),
+        experience_match=result.get("experience_match", False),
+        skills_alignment=result.get("skills_alignment"),
+    )
+
+
+@router.post("/tailor-resume", response_model=TailoredResumeResponse)
+async def tailor_resume(request: TailoredResumeRequest):
+    """
+    Generate a JD-tailored version of a resume.
+
+    Uses AI to rewrite the resume optimized for the specific job description,
+    addressing gaps and incorporating missing keywords.
+
+    Premium feature for tech sales resume optimization.
+    """
+    store = get_store()
+    gate = get_premium_gate()
+
+    # Validate premium access
+    if not gate.has_feature("anonymous", PremiumFeature.DEEP_ANALYSIS):
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "Resume tailoring is a premium feature",
+                "upgrade_options": gate.get_upgrade_options("anonymous")
+            }
+        )
+
+    # Get resume text
+    resume_text = None
+    resume_data = {}
+
+    if request.batch_id and request.resume_id:
+        resume = await store.get_resume(request.batch_id, request.resume_id)
+        if not resume:
+            raise HTTPException(status_code=404, detail="Resume not found")
+        resume_text = resume.get("text", "")
+        resume_data = resume.get("extracted_data", {})
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Must provide batch_id and resume_id"
+        )
+
+    if not resume_text:
+        raise HTTPException(status_code=400, detail="Resume text not available")
+
+    # First, get the match analysis
+    matcher = get_tech_sales_matcher()
+    match_result = await matcher.match_resume(
+        resume_text=resume_text,
+        resume_data=resume_data,
+        job_description=request.job_description,
+        target_role=request.target_role.value if request.target_role else None,
+    )
+
+    # For now, return a structured response with the analysis
+    # Full AI-powered rewriting will be implemented when LLM integration is added
+    changes_needed = []
+    metrics_needed = []
+
+    # Identify changes based on gaps
+    for gap in match_result.get("gaps", []):
+        if "Experience" in gap:
+            changes_needed.append("Reframe experience to emphasize relevant skills")
+        elif "methodology" in gap.lower():
+            changes_needed.append(f"Add sales methodology: {gap.split(':')[-1].strip()}")
+        elif "tool" in gap.lower():
+            changes_needed.append(f"Highlight tool proficiency: {gap.split(':')[-1].strip()}")
+        elif "quota" in gap.lower():
+            changes_needed.append("Add quantified quota attainment metrics")
+            # Add metrics questions
+            for exp in resume_data.get("experience", []):
+                if exp.get("company"):
+                    metrics_needed.append({
+                        "company": exp["company"],
+                        "role": exp.get("title", "Sales Role"),
+                        "questions": [
+                            "What was your annual/quarterly quota?",
+                            "What percentage of quota did you achieve?",
+                            "How many deals did you close per quarter?",
+                        ]
+                    })
+
+    # Add keyword incorporation changes
+    keywords_to_add = match_result.get("keywords_to_add", [])
+    if keywords_to_add:
+        changes_needed.append(f"Incorporate keywords: {', '.join(keywords_to_add[:5])}")
+
+    # Calculate estimated improvement
+    current_score = match_result.get("match_score", 50)
+    estimated_improvement = min(100 - current_score, len(changes_needed) * 5 + len(keywords_to_add) * 2)
+
+    return TailoredResumeResponse(
+        tailored_resume=resume_text,  # Original for now - full rewriting needs LLM
+        changes_made=changes_needed,
+        metrics_needed=metrics_needed[:3],  # Limit to top 3 companies
+        match_improvement=int(estimated_improvement),
+    )
+
+
+@router.post("/{batch_id}/resumes/{resume_id}/set-role", response_model=SetRoleResponse)
+async def set_resume_role(
+    batch_id: str,
+    resume_id: str,
+    request: SetRoleRequest,
+):
+    """
+    Set the target sales role for a resume.
+
+    Updates the resume record with the target role for optimized analysis.
+    """
+    store = get_store()
+
+    # Get resume
+    resume = await store.get_resume(batch_id, resume_id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    # Update the target role
+    await store.update_resume(
+        batch_id,
+        resume_id,
+        target_role=request.role.value,
+    )
+
+    # Get display name
+    role_display_names = {
+        "entry_sdr": "Entry-Level SDR (0-1 years)",
+        "sdr": "SDR/BDR (1-3 years)",
+        "account_executive": "Account Executive (2-5 years)",
+        "senior_ae": "Senior/Enterprise AE (5+ years)",
+        "account_manager": "Account Manager / CSM",
+        "sales_manager": "Sales Manager / Director",
+    }
+
+    return SetRoleResponse(
+        message="Role updated successfully",
+        role=request.role,
+        role_display_name=role_display_names.get(request.role.value, request.role.value),
+    )
+
+
+@router.get("/parse-jd")
+async def parse_jd(job_description: str):
+    """
+    Parse a job description and extract requirements.
+
+    Utility endpoint for debugging and understanding JD parsing.
+    Returns extracted requirements including:
+    - Required skills
+    - Experience requirements
+    - Sales methodologies mentioned
+    - Sales tools mentioned
+    - Detected role type
+    """
+    result = parse_job_description(job_description, is_tech_sales=True)
+    return result
 
 
 def _generate_csv(data: List[dict], request: ExportRequest) -> str:

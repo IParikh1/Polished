@@ -22,6 +22,7 @@ class PremiumFeature(str, Enum):
     JD_MATCHING = "jd_matching"
     DEEP_ANALYSIS = "deep_analysis"
     CONSULTING = "consulting"
+    RESUME_WRITING = "resume_writing"
     BULK_EXPORT = "bulk_export"
     API_ACCESS = "api_access"
     PRIORITY_PROCESSING = "priority_processing"
@@ -39,6 +40,7 @@ TIER_FEATURES: Dict[PremiumTier, Set[PremiumFeature]] = {
     PremiumTier.PRO: {
         PremiumFeature.JD_MATCHING,
         PremiumFeature.DEEP_ANALYSIS,
+        PremiumFeature.RESUME_WRITING,
         PremiumFeature.BULK_EXPORT,
         PremiumFeature.API_ACCESS,
         PremiumFeature.PRIORITY_PROCESSING,
@@ -47,6 +49,7 @@ TIER_FEATURES: Dict[PremiumTier, Set[PremiumFeature]] = {
         PremiumFeature.JD_MATCHING,
         PremiumFeature.DEEP_ANALYSIS,
         PremiumFeature.CONSULTING,
+        PremiumFeature.RESUME_WRITING,
         PremiumFeature.BULK_EXPORT,
         PremiumFeature.API_ACCESS,
         PremiumFeature.PRIORITY_PROCESSING,
@@ -100,6 +103,11 @@ FEATURE_PRICING: Dict[PremiumFeature, Dict[str, float]] = {
     PremiumFeature.CONSULTING: {
         "per_session": 10.00,
         "per_rewrite": 5.00,
+    },
+    PremiumFeature.RESUME_WRITING: {
+        "per_resume": 2.00,
+        "per_export": 1.00,
+        "per_section_rewrite": 0.50,
     },
 }
 

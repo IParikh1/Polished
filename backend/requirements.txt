@@ -19,6 +19,13 @@ redis>=5.0.0
 PyPDF2>=3.0.0
 python-docx>=1.0.0
 
+# Document Generation
+reportlab>=4.0.0
+weasyprint>=60.0
+
+# LLM Integration
+anthropic>=0.18.0
+
 # Utilities
 python-dotenv>=1.0.0
 

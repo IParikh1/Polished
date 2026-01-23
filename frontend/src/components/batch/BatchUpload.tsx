@@ -1,11 +1,13 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, FileText, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import { useUpload } from '../../hooks/useUpload'
+import { SalesRoleSelector, type SalesRole } from './SalesRoleSelector'
 import clsx from 'clsx'
 
 interface BatchUploadProps {
   batchId: string
+  showRoleSelector?: boolean
 }
 
 const ACCEPTED_TYPES = {
@@ -16,17 +18,37 @@ const ACCEPTED_TYPES = {
   'application/rtf': ['.rtf'],
 }
 
-export default function BatchUpload({ batchId }: BatchUploadProps) {
+export default function BatchUpload({ batchId, showRoleSelector = true }: BatchUploadProps) {
   const { isUploading, uploadedCount, totalCount, errors, upload, reset, isLoading } = useUpload(batchId)
+  const [targetRole, setTargetRole] = useState<SalesRole | null>(null)
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       if (acceptedFiles.length > 0) {
-        upload(acceptedFiles)
+        if (showRoleSelector && !targetRole) {
+          // Store files and wait for role selection
+          setPendingFiles(acceptedFiles)
+        } else {
+          // Upload immediately with role
+          upload(acceptedFiles, targetRole || undefined)
+        }
       }
     },
-    [upload]
+    [upload, targetRole, showRoleSelector]
   )
+
+  const handleUploadWithRole = useCallback(() => {
+    if (pendingFiles.length > 0) {
+      upload(pendingFiles, targetRole || undefined)
+      setPendingFiles([])
+    }
+  }, [pendingFiles, targetRole, upload])
+
+  const handleCancelPending = useCallback(() => {
+    setPendingFiles([])
+    setTargetRole(null)
+  }, [])
 
   const { getRootProps, getInputProps, isDragActive, acceptedFiles } = useDropzone({
     onDrop,
@@ -37,6 +59,15 @@ export default function BatchUpload({ batchId }: BatchUploadProps) {
 
   return (
     <div className="space-y-4">
+      {/* Role Selector - Show before upload if enabled */}
+      {showRoleSelector && pendingFiles.length === 0 && !isLoading && uploadedCount === 0 && (
+        <SalesRoleSelector
+          value={targetRole}
+          onChange={setTargetRole}
+          disabled={isLoading}
+        />
+      )}
+
       {/* Dropzone */}
       <div
         {...getRootProps()}
@@ -65,9 +96,52 @@ export default function BatchUpload({ batchId }: BatchUploadProps) {
             <p className="text-sm text-gray-500">
               or click to browse. Supports PDF, DOCX, DOC, TXT, RTF
             </p>
+            {targetRole && (
+              <p className="text-sm text-primary-600 mt-2">
+                Resumes will be optimized for: <strong>{targetRole.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</strong>
+              </p>
+            )}
           </>
         )}
       </div>
+
+      {/* Pending Files - Need Role Selection */}
+      {pendingFiles.length > 0 && !isLoading && (
+        <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+          <div className="flex items-start gap-3 mb-4">
+            <FileText className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium text-amber-800 mb-1">
+                {pendingFiles.length} file{pendingFiles.length !== 1 ? 's' : ''} ready to upload
+              </p>
+              <p className="text-sm text-amber-700">
+                Select a target role for optimized analysis (optional)
+              </p>
+            </div>
+          </div>
+
+          <SalesRoleSelector
+            value={targetRole}
+            onChange={setTargetRole}
+            className="mb-4"
+          />
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleUploadWithRole}
+              className="btn btn-primary"
+            >
+              Upload {pendingFiles.length} Resume{pendingFiles.length !== 1 ? 's' : ''}
+            </button>
+            <button
+              onClick={handleCancelPending}
+              className="btn btn-secondary"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Upload Progress */}
       {isLoading && (
@@ -102,8 +176,13 @@ export default function BatchUpload({ batchId }: BatchUploadProps) {
             <span className="font-medium text-success-700">
               Successfully uploaded {uploadedCount} resume{uploadedCount !== 1 ? 's' : ''}
             </span>
+            {targetRole && (
+              <span className="text-success-600 text-sm block">
+                Targeting: {targetRole.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+              </span>
+            )}
           </div>
-          <button onClick={reset} className="text-success-600 hover:text-success-700">
+          <button onClick={() => { reset(); setTargetRole(null); }} className="text-success-600 hover:text-success-700">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -136,8 +215,8 @@ export default function BatchUpload({ batchId }: BatchUploadProps) {
         </div>
       )}
 
-      {/* Selected Files Preview */}
-      {!isLoading && acceptedFiles.length > 0 && uploadedCount === 0 && (
+      {/* Selected Files Preview (when role is pre-selected) */}
+      {!isLoading && !showRoleSelector && acceptedFiles.length > 0 && uploadedCount === 0 && pendingFiles.length === 0 && (
         <div className="p-4 bg-gray-50 rounded-lg">
           <p className="font-medium text-gray-700 mb-2">
             Selected {acceptedFiles.length} file{acceptedFiles.length !== 1 ? 's' : ''}:
