@@ -3,7 +3,7 @@ Batch API Routes for Polished Resume Ranking System.
 Handles batch creation, resume upload, scoring, and export.
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Query, BackgroundTasks
+from fastapi import APIRouter, HTTPException, UploadFile, File, Query, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -41,15 +41,38 @@ from ..services.batch_processor import get_processor
 from ..services.batch_cache import get_cache
 from ..services.premium_gate import get_premium_gate, PremiumFeature
 from ..services.jd_matcher import get_tech_sales_matcher, parse_job_description
+from ..middleware.auth import get_current_user, AuthenticatedUser
 
 
 router = APIRouter(prefix="/batches", tags=["Batches"])
 
 
+# ==================== Helper Functions ====================
+
+async def verify_batch_ownership(batch_id: str, user_id: str) -> dict:
+    """
+    Verify that a user owns a batch. Returns the batch if owned.
+    Raises 404 if batch not found, 403 if not owned.
+    """
+    store = get_store()
+    batch = await store.get_batch(batch_id)
+
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    if batch.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Access denied - you don't own this batch")
+
+    return batch
+
+
 # ==================== Batch CRUD Operations ====================
 
 @router.post("", response_model=BatchResponse)
-async def create_batch(request: BatchCreateRequest):
+async def create_batch(
+    request: BatchCreateRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
     """
     Create a new batch for resume processing.
 
@@ -64,7 +87,7 @@ async def create_batch(request: BatchCreateRequest):
     # Validate premium features
     if request.premium_features:
         validation = gate.validate_batch_features(
-            "anonymous",  # Replace with actual user_id when auth is added
+            user.user_id,
             [f.value for f in request.premium_features]
         )
         if not validation["valid"]:
@@ -73,12 +96,13 @@ async def create_batch(request: BatchCreateRequest):
                 detail={
                     "error": "Premium features not available",
                     "denied_features": validation["denied_features"],
-                    "upgrade_options": gate.get_upgrade_options("anonymous")
+                    "upgrade_options": gate.get_upgrade_options(user.user_id)
                 }
             )
 
     batch = await store.create_batch(
         name=request.name,
+        user_id=user.user_id,
         job_description=request.job_description,
         premium_features=[f.value for f in request.premium_features] if request.premium_features else [],
         settings=request.settings,
@@ -106,10 +130,11 @@ async def create_batch(request: BatchCreateRequest):
 async def list_batches(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    user: AuthenticatedUser = Depends(get_current_user)
 ):
-    """List all batches with pagination."""
+    """List all batches with pagination. Only returns batches owned by the current user."""
     store = get_store()
-    batches = await store.list_batches(limit=limit)
+    batches = await store.list_batches(user_id=user.user_id, limit=limit)
 
     batch_responses = [
         BatchResponse(
@@ -136,33 +161,16 @@ async def list_batches(
 
 
 @router.get("/{batch_id}", response_model=BatchResponse)
-async def get_batch(batch_id: str):
-    """Get batch by ID."""
-    # Check cache first
-    cache = get_cache()
-    cached = cache.get_cached_batch(batch_id)
-
-    if cached:
-        return BatchResponse(
-            batch_id=cached["batch_id"],
-            name=cached["name"],
-            status=BatchStatus(cached["status"]),
-            total_resumes=cached.get("total_resumes", 0),
-            processed_resumes=cached.get("processed_resumes", 0),
-            created_at=datetime.fromisoformat(cached["created_at"]),
-            updated_at=datetime.fromisoformat(cached["updated_at"]),
-            job_description=cached.get("job_description"),
-            premium_features=cached.get("premium_features", []),
-            settings=cached.get("settings", {}),
-        )
-
-    store = get_store()
-    batch = await store.get_batch(batch_id)
-
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+async def get_batch(
+    batch_id: str,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
+    """Get batch by ID. Only accessible by the batch owner."""
+    # Verify ownership (this also returns the batch)
+    batch = await verify_batch_ownership(batch_id, user.user_id)
 
     # Cache for next time
+    cache = get_cache()
     cache.cache_batch(batch_id, batch)
 
     return BatchResponse(
@@ -180,14 +188,17 @@ async def get_batch(batch_id: str):
 
 
 @router.patch("/{batch_id}", response_model=BatchResponse)
-async def update_batch(batch_id: str, request: BatchUpdateRequest):
-    """Update batch settings."""
+async def update_batch(
+    batch_id: str,
+    request: BatchUpdateRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
+    """Update batch settings. Only accessible by the batch owner."""
     store = get_store()
     cache = get_cache()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
 
     # Build updates
     updates = {}
@@ -220,14 +231,16 @@ async def update_batch(batch_id: str, request: BatchUpdateRequest):
 
 
 @router.delete("/{batch_id}")
-async def delete_batch(batch_id: str):
-    """Delete a batch and all associated data."""
+async def delete_batch(
+    batch_id: str,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
+    """Delete a batch and all associated data. Only accessible by the batch owner."""
     store = get_store()
     cache = get_cache()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
 
     success = await store.delete_batch(batch_id)
 
@@ -241,7 +254,10 @@ async def delete_batch(batch_id: str):
 
 
 @router.post("/{batch_id}/close", response_model=BatchResponse)
-async def close_batch(batch_id: str):
+async def close_batch(
+    batch_id: str,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
     """
     Manually close a batch to view rankings without waiting for processing.
 
@@ -256,9 +272,8 @@ async def close_batch(batch_id: str):
     store = get_store()
     cache = get_cache()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify ownership
+    batch = await verify_batch_ownership(batch_id, user.user_id)
 
     # Only allow closing pending or processing batches
     if batch["status"] not in ["pending", "processing"]:
@@ -301,7 +316,10 @@ async def close_batch(batch_id: str):
 
 
 @router.post("/{batch_id}/reopen", response_model=BatchResponse)
-async def reopen_batch(batch_id: str):
+async def reopen_batch(
+    batch_id: str,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
     """
     Reopen a completed batch to allow adding more resumes.
 
@@ -315,9 +333,8 @@ async def reopen_batch(batch_id: str):
     store = get_store()
     cache = get_cache()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify ownership
+    batch = await verify_batch_ownership(batch_id, user.user_id)
 
     # Only allow reopening completed or failed batches
     if batch["status"] not in ["completed", "failed"]:
@@ -358,6 +375,7 @@ async def reopen_batch(batch_id: str):
 async def get_upload_urls(
     batch_id: str,
     filenames: List[str] = Query(..., description="List of filenames to upload"),
+    user: AuthenticatedUser = Depends(get_current_user)
 ):
     """
     Get presigned URLs for direct upload to S3.
@@ -366,9 +384,8 @@ async def get_upload_urls(
     """
     store = get_store()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
 
     upload_urls = []
     for filename in filenames:
@@ -399,6 +416,7 @@ async def upload_resume(
     batch_id: str,
     file: UploadFile = File(...),
     target_role: Optional[SalesRole] = None,
+    user: AuthenticatedUser = Depends(get_current_user)
 ):
     """
     Upload a single resume file directly.
@@ -409,9 +427,8 @@ async def upload_resume(
     """
     store = get_store()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
 
     # Validate file type
     allowed_types = [".pdf", ".doc", ".docx", ".txt", ".rtf"]
@@ -447,6 +464,7 @@ async def upload_multiple_resumes(
     batch_id: str,
     files: List[UploadFile] = File(...),
     target_role: Optional[SalesRole] = None,
+    user: AuthenticatedUser = Depends(get_current_user)
 ):
     """
     Upload multiple resume files at once.
@@ -455,9 +473,8 @@ async def upload_multiple_resumes(
     """
     store = get_store()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
 
     results = []
     allowed_types = [".pdf", ".doc", ".docx", ".txt", ".rtf"]
@@ -525,7 +542,11 @@ async def confirm_resume_upload(
 # ==================== Processing Operations ====================
 
 @router.post("/{batch_id}/process")
-async def process_batch(batch_id: str, background_tasks: BackgroundTasks):
+async def process_batch(
+    batch_id: str,
+    background_tasks: BackgroundTasks,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
     """
     Start processing all resumes in a batch.
 
@@ -535,9 +556,8 @@ async def process_batch(batch_id: str, background_tasks: BackgroundTasks):
     processor = get_processor()
     cache = get_cache()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
 
     if processor.is_processing(batch_id):
         raise HTTPException(status_code=409, detail="Batch is already being processed")
@@ -556,18 +576,18 @@ async def process_batch(batch_id: str, background_tasks: BackgroundTasks):
 
 
 @router.get("/{batch_id}/processing-status")
-async def get_processing_status(batch_id: str):
+async def get_processing_status(
+    batch_id: str,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
     """Get the current processing status of a batch."""
     cache = get_cache()
-    store = get_store()
+
+    # Verify ownership (returns the batch)
+    batch = await verify_batch_ownership(batch_id, user.user_id)
 
     # Check cache for real-time status
     cached_status = cache.get_processing_status(batch_id)
-
-    # Get batch from store
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
 
     return {
         "batch_id": batch_id,
@@ -588,13 +608,13 @@ async def get_processing_status(batch_id: str):
 async def get_batch_resumes(
     batch_id: str,
     include_download_urls: bool = Query(False),
+    user: AuthenticatedUser = Depends(get_current_user)
 ):
     """Get all resumes in a batch."""
     store = get_store()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
 
     resumes = await store.get_batch_resumes(
         batch_id,
@@ -614,9 +634,13 @@ async def get_resume(
     batch_id: str,
     resume_id: str,
     include_download_url: bool = Query(True),
+    user: AuthenticatedUser = Depends(get_current_user)
 ):
     """Get a specific resume with all its data."""
     store = get_store()
+
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
 
     resume = await store.get_resume(
         batch_id,
@@ -637,6 +661,7 @@ async def get_rankings(
     max_score: Optional[float] = Query(None, ge=0, le=100),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    user: AuthenticatedUser = Depends(get_current_user)
 ):
     """
     Get ranked resumes with optional filtering.
@@ -646,9 +671,8 @@ async def get_rankings(
     store = get_store()
     cache = get_cache()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
 
     # Create filter hash for caching
     filters = ScoreFilterRequest(
@@ -718,7 +742,11 @@ async def get_rankings(
 # ==================== Export Operations ====================
 
 @router.post("/{batch_id}/export", response_model=ExportResponse)
-async def export_batch(batch_id: str, request: ExportRequest):
+async def export_batch(
+    batch_id: str,
+    request: ExportRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+):
     """
     Export batch results to CSV or JSON.
 
@@ -727,12 +755,11 @@ async def export_batch(batch_id: str, request: ExportRequest):
     store = get_store()
     gate = get_premium_gate()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
 
     # Check premium features if exporting premium data
-    if request.include_deep_analysis and not gate.has_feature("anonymous", PremiumFeature.DEEP_ANALYSIS):
+    if request.include_deep_analysis and not gate.has_feature(user.user_id, PremiumFeature.DEEP_ANALYSIS):
         raise HTTPException(status_code=402, detail="Deep analysis export requires premium subscription")
 
     # Get resumes

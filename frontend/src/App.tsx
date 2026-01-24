@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
+import { SignInPage, SignUpPage, ProtectedRoute } from './components/auth'
 import BatchDashboard from './pages/BatchDashboard'
 import ConsultingPage from './pages/ConsultingPage'
 import WritingPage from './pages/WritingPage'
@@ -10,7 +11,19 @@ import HelpPage from './pages/HelpPage'
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Layout />}>
+      {/* Public auth routes */}
+      <Route path="/sign-in/*" element={<SignInPage />} />
+      <Route path="/sign-up/*" element={<SignUpPage />} />
+
+      {/* Protected app routes */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<Navigate to="/batches" replace />} />
         <Route path="batches" element={<BatchDashboard />} />
         <Route path="batches/:batchId" element={<BatchDashboard />} />

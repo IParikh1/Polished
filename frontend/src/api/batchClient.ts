@@ -10,6 +10,38 @@ const api = axios.create({
   },
 })
 
+// Auth token management
+let authToken: string | null = null
+
+export function setAuthToken(token: string | null) {
+  authToken = token
+}
+
+// Request interceptor to add auth token
+api.interceptors.request.use(
+  (config) => {
+    if (authToken) {
+      config.headers.Authorization = `Bearer ${authToken}`
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+// Response interceptor to handle 401 errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid - redirect to sign-in
+      window.location.href = '/sign-in'
+    }
+    return Promise.reject(error)
+  }
+)
+
 // Types
 export interface Batch {
   batch_id: string

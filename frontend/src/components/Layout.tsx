@@ -1,7 +1,9 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { FileText, MessageSquare, BarChart3, Settings, Menu, X, Sparkles, HelpCircle } from 'lucide-react'
 import { useState } from 'react'
+import { UserButton } from '@clerk/clerk-react'
 import clsx from 'clsx'
+import { useAuthSync } from '../hooks/useAuthSync'
 
 const navigation = [
   { name: 'Batches', href: '/batches', icon: FileText },
@@ -15,6 +17,9 @@ const navigation = [
 export default function Layout() {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Sync Clerk auth token with API client
+  useAuthSync()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -123,6 +128,14 @@ export default function Layout() {
             <Link to="/help" className="btn-secondary">
               <span className="hidden sm:inline">Documentation</span>
             </Link>
+            <UserButton
+              afterSignOutUrl="/sign-in"
+              appearance={{
+                elements: {
+                  avatarBox: 'w-9 h-9',
+                },
+              }}
+            />
           </div>
         </header>
 
