@@ -7,6 +7,7 @@ import WritingPage from './pages/WritingPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import SettingsPage from './pages/SettingsPage'
 import HelpPage from './pages/HelpPage'
+import PricingPage from './pages/PricingPage'
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
         <Route path="writing/:batchId/:resumeId" element={<WritingPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="pricing" element={<PricingPage />} />
         <Route path="help" element={<HelpPage />} />
       </Route>
     </Routes>

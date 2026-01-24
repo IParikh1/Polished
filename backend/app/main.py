@@ -15,6 +15,7 @@ from .api.batch_routes import router as batch_router
 from .api.placement_routes import router as placement_router
 from .api.consult_routes import router as consult_router
 from .api.resume_routes import router as resume_router
+from .api.stripe_routes import router as stripe_router
 from .services.batch_cache import get_cache
 from .services.premium_gate import get_premium_gate
 
@@ -171,6 +172,7 @@ app.include_router(batch_router, prefix="/api/v1")
 app.include_router(placement_router, prefix="/api/v1")
 app.include_router(consult_router, prefix="/api/v1")
 app.include_router(resume_router, prefix="/api/v1")
+app.include_router(stripe_router, prefix="/api/v1")
 
 
 # Health check endpoint

@@ -1,9 +1,10 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
-import { FileText, MessageSquare, BarChart3, Settings, Menu, X, Sparkles, HelpCircle } from 'lucide-react'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { FileText, MessageSquare, BarChart3, Settings, Menu, X, Sparkles, HelpCircle, Crown, CreditCard } from 'lucide-react'
 import { useState } from 'react'
 import { UserButton } from '@clerk/clerk-react'
 import clsx from 'clsx'
 import { useAuthSync } from '../hooks/useAuthSync'
+import { useSubscription, useCreatePortal } from '../hooks/useSubscription'
 
 const navigation = [
   { name: 'Batches', href: '/batches', icon: FileText },
@@ -16,10 +17,30 @@ const navigation = [
 
 export default function Layout() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Sync Clerk auth token with API client
   useAuthSync()
+
+  // Get subscription status
+  const { data: subscription, isLoading: subLoading } = useSubscription()
+  const createPortal = useCreatePortal()
+  const isPro = subscription?.is_pro ?? false
+
+  const handleManageSubscription = async () => {
+    if (isPro && subscription?.manage_url) {
+      try {
+        const result = await createPortal.mutateAsync(window.location.href)
+        window.location.href = result.portal_url
+      } catch (error) {
+        console.error('Failed to create portal session:', error)
+        navigate('/settings')
+      }
+    } else {
+      navigate('/pricing')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -100,15 +121,43 @@ export default function Layout() {
             })}
           </nav>
           <div className="p-4 border-t">
-            <div className="p-4 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg text-white">
-              <h4 className="font-semibold mb-1">Upgrade to Pro</h4>
-              <p className="text-sm text-primary-100 mb-3">
-                Unlock JD matching, deep analysis, and more.
-              </p>
-              <button className="w-full py-2 bg-white text-primary-600 rounded-lg text-sm font-medium hover:bg-primary-50 transition-colors">
-                View Plans
-              </button>
-            </div>
+            {subLoading ? (
+              <div className="p-4 bg-gray-100 rounded-lg animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                <div className="h-3 bg-gray-200 rounded w-1/2" />
+              </div>
+            ) : isPro ? (
+              <div className="p-4 bg-gradient-to-r from-amber-400 to-amber-500 rounded-lg text-white">
+                <div className="flex items-center gap-2 mb-1">
+                  <Crown className="w-4 h-4" />
+                  <h4 className="font-semibold">Pro Plan</h4>
+                </div>
+                <p className="text-sm text-amber-100 mb-3">
+                  All premium features unlocked
+                </p>
+                <button
+                  onClick={handleManageSubscription}
+                  disabled={createPortal.isPending}
+                  className="w-full py-2 bg-white text-amber-600 rounded-lg text-sm font-medium hover:bg-amber-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  {createPortal.isPending ? 'Loading...' : 'Manage Subscription'}
+                </button>
+              </div>
+            ) : (
+              <div className="p-4 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg text-white">
+                <h4 className="font-semibold mb-1">Upgrade to Pro</h4>
+                <p className="text-sm text-primary-100 mb-3">
+                  Unlock JD matching, deep analysis, and more.
+                </p>
+                <Link
+                  to="/pricing"
+                  className="block w-full py-2 bg-white text-primary-600 rounded-lg text-sm font-medium hover:bg-primary-50 transition-colors text-center"
+                >
+                  View Plans
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -125,6 +174,12 @@ export default function Layout() {
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-4">
+            {isPro && (
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-white text-xs font-medium">
+                <Crown className="w-3 h-3" />
+                Pro
+              </span>
+            )}
             <Link to="/help" className="btn-secondary">
               <span className="hidden sm:inline">Documentation</span>
             </Link>

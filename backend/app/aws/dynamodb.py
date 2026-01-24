@@ -19,6 +19,7 @@ AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 BATCHES_TABLE = "polished-batches"
 BATCH_RESUMES_TABLE = "polished-batch-resumes"
 PLACEMENTS_TABLE = "polished-placements"
+USERS_TABLE = "polished-users"
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -537,6 +538,127 @@ class DynamoDBClient:
         except ClientError as e:
             print(f"Error getting placement stats: {e}")
             return {}
+
+    # ==================== User Operations ====================
+
+    def create_user(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create or update a user record.
+
+        Args:
+            user_data: Dictionary containing user data
+                - user_id: Clerk user ID (PK)
+                - email: User's email
+                - name: User's full name
+                - subscription_tier: free, pro, enterprise
+                - stripe_customer_id: Stripe customer ID
+                - stripe_subscription_id: Stripe subscription ID
+                - subscription_status: active, canceled, past_due
+        """
+        table = self.resource.Table(USERS_TABLE)
+
+        item = {
+            "user_id": user_data["user_id"],
+            "email": user_data.get("email", ""),
+            "name": user_data.get("name", ""),
+            "subscription_tier": user_data.get("subscription_tier", "free"),
+            "stripe_customer_id": user_data.get("stripe_customer_id"),
+            "stripe_subscription_id": user_data.get("stripe_subscription_id"),
+            "subscription_status": user_data.get("subscription_status"),
+            "created_at": user_data.get("created_at", datetime.utcnow().isoformat()),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+
+        # Remove None values
+        item = {k: v for k, v in item.items() if v is not None}
+
+        table.put_item(Item=item)
+        return item
+
+    def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get a user by their Clerk user ID."""
+        table = self.resource.Table(USERS_TABLE)
+
+        try:
+            response = table.get_item(Key={"user_id": user_id})
+            return response.get("Item")
+        except ClientError as e:
+            print(f"Error getting user: {e}")
+            return None
+
+    def get_user_by_stripe_customer(self, stripe_customer_id: str) -> Optional[Dict[str, Any]]:
+        """Get a user by their Stripe customer ID."""
+        table = self.resource.Table(USERS_TABLE)
+
+        try:
+            response = table.query(
+                IndexName="stripe-customer-index",
+                KeyConditionExpression=Key("stripe_customer_id").eq(stripe_customer_id)
+            )
+            items = response.get("Items", [])
+            return items[0] if items else None
+        except ClientError as e:
+            print(f"Error getting user by Stripe customer: {e}")
+            return None
+
+    def update_user_subscription(
+        self,
+        user_id: str,
+        subscription_tier: str,
+        stripe_customer_id: Optional[str] = None,
+        stripe_subscription_id: Optional[str] = None,
+        subscription_status: Optional[str] = None
+    ) -> bool:
+        """Update user subscription details."""
+        table = self.resource.Table(USERS_TABLE)
+
+        update_expr = "SET subscription_tier = :tier, updated_at = :updated"
+        expr_values = {
+            ":tier": subscription_tier,
+            ":updated": datetime.utcnow().isoformat()
+        }
+
+        if stripe_customer_id:
+            update_expr += ", stripe_customer_id = :customer_id"
+            expr_values[":customer_id"] = stripe_customer_id
+
+        if stripe_subscription_id:
+            update_expr += ", stripe_subscription_id = :sub_id"
+            expr_values[":sub_id"] = stripe_subscription_id
+
+        if subscription_status:
+            update_expr += ", subscription_status = :status"
+            expr_values[":status"] = subscription_status
+
+        try:
+            table.update_item(
+                Key={"user_id": user_id},
+                UpdateExpression=update_expr,
+                ExpressionAttributeValues=expr_values
+            )
+            return True
+        except ClientError as e:
+            print(f"Error updating user subscription: {e}")
+            return False
+
+    def get_or_create_user(
+        self,
+        user_id: str,
+        email: str,
+        name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get existing user or create a new one with default free tier."""
+        user = self.get_user(user_id)
+        if user:
+            return user
+
+        # Create new user with free tier
+        return self.create_user({
+            "user_id": user_id,
+            "email": email,
+            "name": name or "",
+            "subscription_tier": "free",
+        })
 
 
 # Singleton instance

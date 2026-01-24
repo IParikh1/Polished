@@ -683,4 +683,124 @@ export async function getLLMConfigStatus(): Promise<LLMConfigStatus> {
   return response.data
 }
 
+// ==================== Subscription API ====================
+
+export type SubscriptionTier = 'free' | 'pro' | 'enterprise'
+export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'incomplete' | 'trialing'
+
+export interface SubscriptionResponse {
+  tier: SubscriptionTier
+  status: SubscriptionStatus | null
+  is_pro: boolean
+  features: string[]
+  limits: {
+    batches_per_month: number
+    resumes_per_batch: number
+    total_resumes_per_month: number
+    exports_per_month: number
+  }
+  upgrade_url: string | null
+  manage_url: string | null
+}
+
+export interface FeatureAccessResponse {
+  feature: string
+  has_access: boolean
+  required_tier: SubscriptionTier
+  current_tier: SubscriptionTier
+  upgrade_required: boolean
+  feature_info?: {
+    name: string
+    description: string
+    icon: string
+  }
+}
+
+export interface StripeConfig {
+  publishable_key: string
+  pro_price_id: string
+  stripe_configured: boolean
+  prices: {
+    pro: {
+      monthly: number
+      price_id: string
+    }
+  }
+}
+
+export interface CheckoutSessionResponse {
+  checkout_url: string
+  session_id: string
+}
+
+export interface PortalSessionResponse {
+  portal_url: string
+}
+
+export interface PricingTier {
+  id: string
+  name: string
+  price: number | null
+  billing: string
+  description: string
+  features: string[]
+  limitations: string[]
+  cta: string
+  highlighted: boolean
+  price_id?: string
+}
+
+export interface PricingInfo {
+  tiers: PricingTier[]
+  faq: Array<{ question: string; answer: string }>
+}
+
+export async function getSubscriptionStatus(): Promise<SubscriptionResponse> {
+  const response = await api.get<SubscriptionResponse>('/subscription/status')
+  return response.data
+}
+
+export async function checkFeatureAccess(feature: string): Promise<FeatureAccessResponse> {
+  const response = await api.get<FeatureAccessResponse>(`/subscription/features/${feature}`)
+  return response.data
+}
+
+export async function getAllFeaturesStatus(): Promise<{
+  features: FeatureAccessResponse[]
+  user_tier: SubscriptionTier
+}> {
+  const response = await api.get('/subscription/features')
+  return response.data
+}
+
+export async function getStripeConfig(): Promise<StripeConfig> {
+  const response = await api.get<StripeConfig>('/subscription/config')
+  return response.data
+}
+
+export async function createCheckoutSession(
+  priceId: string,
+  successUrl: string,
+  cancelUrl: string
+): Promise<CheckoutSessionResponse> {
+  const response = await api.post<CheckoutSessionResponse>('/subscription/checkout', {
+    price_id: priceId,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+  })
+  return response.data
+}
+
+export async function createPortalSession(returnUrl: string): Promise<PortalSessionResponse> {
+  const response = await api.post<PortalSessionResponse>('/subscription/portal', {
+    return_url: returnUrl,
+  })
+  return response.data
+}
+
+export async function getPricingInfo(): Promise<PricingInfo> {
+  const response = await api.get<PricingInfo>('/subscription/pricing')
+  return response.data
+}
+
 export default api

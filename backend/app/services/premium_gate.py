@@ -142,10 +142,28 @@ class PremiumGate:
         self._user_tiers[user_id] = tier
 
     def get_user_tier(self, user_id: str) -> PremiumTier:
-        """Get user's premium tier."""
+        """Get user's premium tier from database."""
         if self.bypass_mode:
             return PremiumTier.ENTERPRISE
-        return self._user_tiers.get(user_id, PremiumTier.FREE)
+
+        # Check in-memory cache first
+        if user_id in self._user_tiers:
+            return self._user_tiers[user_id]
+
+        # Query database for user tier
+        try:
+            from ..aws.dynamodb import get_db
+            db = get_db()
+            user = db.get_user(user_id)
+            if user:
+                tier_str = user.get("subscription_tier", "free")
+                tier = PremiumTier(tier_str)
+                self._user_tiers[user_id] = tier  # Cache it
+                return tier
+        except Exception as e:
+            print(f"Error fetching user tier: {e}")
+
+        return PremiumTier.FREE
 
     def has_feature(self, user_id: str, feature: PremiumFeature) -> bool:
         """Check if user has access to a feature."""

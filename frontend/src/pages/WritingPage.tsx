@@ -9,17 +9,20 @@ import {
   ChevronRight,
   Loader2,
   AlertCircle,
+  Lock,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useBatches } from '../hooks/useBatches'
 import { useBatchResumes } from '../hooks/useRankings'
 import { useWritingStatus } from '../hooks/useResumeWriting'
+import { useSubscription } from '../hooks/useSubscription'
 import {
   ResumeWriter,
   MetricsExtractor,
   SectionRewriter,
 } from '../components/writing'
 import { SalesRoleSelector, type SalesRole } from '../components/batch/SalesRoleSelector'
+import { FeatureGate } from '../components/paywall'
 
 type WritingMode = 'select' | 'full' | 'metrics' | 'sections'
 
@@ -69,6 +72,9 @@ export default function WritingPage() {
   const { data: batchesData, isLoading: batchesLoading } = useBatches()
   const { data: resumesData, isLoading: resumesLoading } = useBatchResumes(selectedBatchId || undefined)
   const { data: writingStatus, isLoading: statusLoading } = useWritingStatus()
+  const { data: subscription } = useSubscription()
+
+  const hasResumeWriting = subscription?.features?.includes('resume_writing') ?? false
 
   const selectedResume = resumesData?.resumes?.find(r => r.resume_id === selectedResumeId)
 
@@ -350,12 +356,14 @@ export default function WritingPage() {
           </div>
         </div>
 
-        <ResumeWriter
-          batchId={urlBatchId}
-          resumeId={urlResumeId}
-          initialRole={targetRole || undefined}
-          extractedData={selectedResume?.extracted_data}
-        />
+        <FeatureGate feature="resume_writing">
+          <ResumeWriter
+            batchId={urlBatchId}
+            resumeId={urlResumeId}
+            initialRole={targetRole || undefined}
+            extractedData={selectedResume?.extracted_data}
+          />
+        </FeatureGate>
       </div>
     )
   }
@@ -376,14 +384,16 @@ export default function WritingPage() {
         </div>
 
         <div className="max-w-2xl">
-          <MetricsExtractor
-            batchId={urlBatchId}
-            resumeId={urlResumeId}
-            targetRole={targetRole!}
-            onMetricsCollected={(metrics) => {
-              console.log('Collected metrics:', metrics)
-            }}
-          />
+          <FeatureGate feature="resume_writing">
+            <MetricsExtractor
+              batchId={urlBatchId}
+              resumeId={urlResumeId}
+              targetRole={targetRole!}
+              onMetricsCollected={(metrics) => {
+                console.log('Collected metrics:', metrics)
+              }}
+            />
+          </FeatureGate>
         </div>
 
         {/* Tips */}
@@ -416,12 +426,14 @@ export default function WritingPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <SectionRewriter
-            batchId={urlBatchId}
-            resumeId={urlResumeId}
-            targetRole={targetRole!}
-            jobDescription={jobDescription || undefined}
-          />
+          <FeatureGate feature="resume_writing">
+            <SectionRewriter
+              batchId={urlBatchId}
+              resumeId={urlResumeId}
+              targetRole={targetRole!}
+              jobDescription={jobDescription || undefined}
+            />
+          </FeatureGate>
 
           {/* Tips Panel */}
           <div className="space-y-4">

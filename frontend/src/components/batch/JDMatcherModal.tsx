@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { X, Target, Loader2, Sparkles, FileText } from 'lucide-react'
 import type { Resume, SalesRole } from '../../api/batchClient'
 import { useMatchJD } from '../../hooks/useJDMatching'
+import { useSubscription } from '../../hooks/useSubscription'
 import MatchResults from './MatchResults'
+import UpgradeModal from '../paywall/UpgradeModal'
 import type { JDMatchResult } from './JDMatcher'
 
 interface JDMatcherModalProps {
@@ -25,8 +27,55 @@ export default function JDMatcherModal({ batchId, resume, onClose }: JDMatcherMo
   const [jobTitle, setJobTitle] = useState('')
   const [targetRole, setTargetRole] = useState<SalesRole | ''>('')
   const [matchResult, setMatchResult] = useState<JDMatchResult | null>(null)
+  const [showUpgrade, setShowUpgrade] = useState(false)
 
   const matchJD = useMatchJD()
+  const { data: subscription } = useSubscription()
+
+  const hasJdMatching = subscription?.features?.includes('jd_matching') ?? false
+
+  // If user doesn't have JD matching, show upgrade modal
+  if (!hasJdMatching) {
+    return (
+      <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-6">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-amber-100 rounded-full flex items-center justify-center">
+                <Target className="w-8 h-8 text-amber-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                Upgrade to Unlock JD Matching
+              </h2>
+              <p className="text-gray-600 mb-6">
+                JD Matching is a Pro feature. Upgrade to match resumes against job descriptions
+                with AI-powered skill matching and gap analysis.
+              </p>
+              <div className="flex gap-3">
+                <button onClick={onClose} className="flex-1 btn-secondary">
+                  Close
+                </button>
+                <button
+                  onClick={() => setShowUpgrade(true)}
+                  className="flex-1 btn-primary bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600"
+                >
+                  Upgrade to Pro
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <UpgradeModal
+          isOpen={showUpgrade}
+          onClose={() => {
+            setShowUpgrade(false)
+            onClose()
+          }}
+          feature="jd_matching"
+        />
+      </>
+    )
+  }
 
   const handleAnalyze = async () => {
     if (!jobDescription.trim() || jobDescription.length < 50) return
