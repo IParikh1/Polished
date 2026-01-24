@@ -1,7 +1,7 @@
 # Polished Tech Sales Features - Progress Tracker
 
-**Last Updated:** January 23, 2026 (Session 10)
-**Overall Status:** 🟢 Features Complete - Ready for Pilot
+**Last Updated:** January 24, 2026 (Session 11)
+**Overall Status:** 🟡 In Progress - Auth & Paywall Implementation
 
 ---
 
@@ -15,7 +15,10 @@
 | Feature 3: Metrics Extraction | 🟢 Complete | 7/7 tasks | Day 21 |
 | Feature 4: Resume Writing & Export | 🟢 Complete | 10/10 tasks | Day 21 |
 | Prompt Engineering | 🟢 Complete | 8/8 tasks | Day 10 |
-| Bug Fixes & Enhancements | 🟢 Complete | 2/2 tasks | Ongoing |
+| Bug Fixes & Enhancements | 🟢 Complete | 7/7 tasks | Ongoing |
+| **Feature 5: Authentication (Clerk)** | 🟡 In Progress | 0/13 tasks | Day 25 |
+| **Feature 6: Data Isolation** | 🔴 Not Started | 0/9 tasks | Day 26 |
+| **Feature 7: Subscription Paywall (Stripe)** | 🔴 Not Started | 0/17 tasks | Day 28 |
 
 **Legend:** 🔴 Not Started | 🟡 In Progress | 🟢 Complete | ⏸️ Blocked
 
@@ -255,7 +258,96 @@
 
 ---
 
+## Feature 5: Authentication (Clerk)
+
+### Frontend Tasks
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| A.1 | Create Clerk account and configure app | 🔴 | |
+| A.2 | Install Clerk packages (frontend) | 🔴 | |
+| A.3 | Create ClerkProvider wrapper | 🔴 | |
+| A.4 | Create SignInPage component | 🔴 | |
+| A.5 | Create SignUpPage component | 🔴 | |
+| A.6 | Add auth routes to App.tsx | 🔴 | |
+| A.7 | Create ProtectedRoute component | 🔴 | |
+| A.8 | Add UserButton to Layout header | 🔴 | |
+| A.9 | Update batchClient to include auth token | 🔴 | |
+
+### Backend Tasks
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| A.10 | Create backend auth middleware | 🔴 | |
+| A.11 | Update batch_routes.py for user isolation | 🔴 | |
+| A.12 | Update aws_store.py for user scoping | 🔴 | |
+| A.13 | Test full auth flow E2E | 🔴 | |
+
+---
+
+## Feature 6: Data Isolation
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| D.1 | Add user ownership check helper | 🔴 | |
+| D.2 | Update list_batches endpoint | 🔴 | |
+| D.3 | Update get_batch endpoint | 🔴 | |
+| D.4 | Update create_batch endpoint | 🔴 | |
+| D.5 | Update delete_batch endpoint | 🔴 | |
+| D.6 | Update all resume endpoints | 🔴 | |
+| D.7 | Update rankings endpoint | 🔴 | |
+| D.8 | Update placement endpoints | 🔴 | |
+| D.9 | Test data isolation E2E | 🔴 | |
+
+---
+
+## Feature 7: Subscription Paywall (Stripe)
+
+### Backend Tasks
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| S.1 | Create Stripe account and configure products | 🔴 | |
+| S.2 | Create polished-users DynamoDB table | 🔴 | |
+| S.3 | Add user table operations to dynamodb.py | 🔴 | |
+| S.4 | Create subscription_service.py | 🔴 | |
+| S.5 | Create stripe_routes.py (checkout, webhook, portal) | 🔴 | |
+| S.6 | Update premium_gate.py to use real user tiers | 🔴 | |
+
+### Frontend Tasks
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| S.7 | Create useSubscription hook | 🔴 | |
+| S.8 | Create FeatureGate component | 🔴 | |
+| S.9 | Create UpgradeModal component | 🔴 | |
+| S.10 | Create ProBadge component | 🔴 | |
+| S.11 | Gate JD Matching features | 🔴 | |
+| S.12 | Gate Resume Writing features | 🔴 | |
+| S.13 | Gate Export features | 🔴 | |
+| S.14 | Add subscription status to Layout | 🔴 | |
+| S.15 | Create PricingPage | 🔴 | |
+| S.16 | Test Stripe checkout flow E2E | 🔴 | |
+| S.17 | Test webhook handling | 🔴 | |
+
+---
+
 ## Notes & Decisions
+
+### January 24, 2026 (Session 11)
+- **Authentication & Paywall Planning**
+- Created PRD for Auth + Paywall features: `docs/PRD-auth-paywall.md`
+- Technology decisions:
+  - Authentication: Clerk (fast implementation, migrate to Cognito later at scale)
+  - Payments: Stripe (industry standard, subscription management)
+- Added 39 new tasks across 3 features:
+  - Feature 5: Authentication (Clerk) - 13 tasks
+  - Feature 6: Data Isolation - 9 tasks
+  - Feature 7: Subscription Paywall (Stripe) - 17 tasks
+- Architecture notes:
+  - DynamoDB already has user_id field and user-index GSI (ready for isolation)
+  - premium_gate.py already has tier system (needs connection to real user data)
+  - New polished-users DynamoDB table needed for subscription tracking
 
 ### January 23, 2026 (Session 10)
 - **Real-time Resume Count Sync & Manual Batch Close**
