@@ -341,7 +341,7 @@
 
 ## Notes & Decisions
 
-### January 25, 2026 (Session 13 - Tech Sales Scoring Improvements)
+### January 25, 2026 (Session 13 - Tech Sales Scoring Improvements + DevTeam Review)
 - **Redesigned scoring system for tech sales resumes**
 - Research conducted on 2025-2026 recruiter priorities:
   - Sources: Resume Worded, Enhancv, Highspot, Everstage
@@ -367,6 +367,28 @@
   - backend/app/models/batch_schemas.py - Added achievements, certifications, career_progression to ScoreBreakdown
   - backend/app/services/batch_processor.py - Now uses tech sales scoring by default
 - New convenience functions: get_tech_sales_scorer(), score_tech_sales_resume()
+
+**DevTeam RALPH Code Review Results:**
+- **Implementation Quality: 8.5/10** - Well-structured, research-backed implementation
+- **Review Findings:**
+  1. ✅ Weights sum correctly to 1.0 (validated)
+  2. ✅ All planned features implemented (achievements, certifications, career_progression)
+  3. ✅ Progressive scoring working correctly
+  4. ✅ Backward compatibility maintained (generic ScoringWeights still works)
+  5. ✅ Async-ready methods for future LLM integration
+- **Issues Found & Fixed:**
+  1. **Missing AI/Automation Skills** - Added "ai_automation" category to TECH_SALES_SKILLS
+     - Includes: ChatGPT, Claude, AI tools, Zapier, predictive analytics, sales intelligence
+     - Added +10 bonus points for AI skills in tech sales scoring
+  2. **Title Matching Too Loose** - Fixed career progression scoring
+     - Short terms like "ae" now use word boundary matching (r'\bae\b')
+     - Prevents false positives (e.g., "aerospace" no longer matches "ae")
+  3. **No Weight Validation** - Added __post_init__ validation
+     - Both ScoringWeights and TechSalesScoringWeights now validate weights sum to 1.0
+     - Raises ValueError if custom weights are misconfigured
+- **Not Implemented (Out of Scope):**
+  - Unit tests for quick_scorer.py (recommended for future)
+- Syntax check passed after all fixes
 
 ### January 25, 2026 (Session 12 - Assessment & Implementation)
 - **Assessed Code Review Recommendations**

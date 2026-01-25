@@ -35,6 +35,12 @@ class ScoringWeights:
     keywords: float = 0.15
     contact_info: float = 0.05
 
+    def __post_init__(self):
+        """Validate that weights sum to 1.0."""
+        total = sum(self.to_dict().values())
+        if not (0.99 <= total <= 1.01):  # Allow small floating point variance
+            raise ValueError(f"Weights must sum to 1.0, got {total}")
+
     def to_dict(self) -> Dict[str, float]:
         return {
             "experience": self.experience,
@@ -62,6 +68,12 @@ class TechSalesScoringWeights:
     achievements: float = 0.18  # #1 differentiator per recruiters
     certifications: float = 0.08
     career_progression: float = 0.09
+
+    def __post_init__(self):
+        """Validate that weights sum to 1.0."""
+        total = sum(self.to_dict().values())
+        if not (0.99 <= total <= 1.01):  # Allow small floating point variance
+            raise ValueError(f"Weights must sum to 1.0, got {total}")
 
     def to_dict(self) -> Dict[str, float]:
         return {
@@ -259,6 +271,13 @@ TECH_SALES_SKILLS = {
         "presentation", "communication", "relationship building",
         "consultative", "strategic", "cross-functional", "collaborative",
         "coachable", "resilient", "self-motivated", "competitive",
+    ],
+    # AI/Automation skills (emerging 2025-2026)
+    "ai_automation": [
+        "chatgpt", "claude", "ai assistant", "ai tools", "generative ai",
+        "sales automation", "workflow automation", "zapier", "make.com",
+        "ai prospecting", "ai-powered", "machine learning",
+        "predictive analytics", "sales intelligence", "intent data",
     ],
 }
 
@@ -469,6 +488,11 @@ class QuickScorer:
             # Core sales skills
             core_skills_found = sum(1 for s in TECH_SALES_SKILLS["core_skills"] if s in found_skills)
             score += min(core_skills_found * 2, 10)
+
+            # AI/Automation bonus (emerging 2025-2026)
+            ai_skills_found = any(s in text for s in TECH_SALES_SKILLS["ai_automation"])
+            if ai_skills_found:
+                score += 10
         else:
             # Original generic scoring
             # Score based on skill count
@@ -738,10 +762,16 @@ class QuickScorer:
         score = 0
         levels_found = set()
 
-        # Detect title levels from text
+        # Detect title levels from text using word boundaries for short terms
         for level, titles in SALES_TITLE_LEVELS.items():
             for title in titles:
-                if title in text:
+                # Use word boundary matching for short terms to avoid false positives
+                if len(title) <= 3:
+                    # Match as whole word only (e.g., "ae" shouldn't match "aerospace")
+                    if re.search(rf'\b{re.escape(title)}\b', text):
+                        levels_found.add(level)
+                        break
+                elif title in text:
                     levels_found.add(level)
                     break
 
