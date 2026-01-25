@@ -4,7 +4,6 @@ Verifies Clerk JWT tokens and extracts user information.
 """
 
 import os
-import httpx
 import jwt
 from jwt import PyJWKClient
 from typing import Optional

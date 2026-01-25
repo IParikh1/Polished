@@ -42,10 +42,22 @@ function ProtectedRouteWithAuth({ children }: ProtectedRouteProps) {
 
 // Waits for auth token to be ready before rendering children
 function AuthGuard({ children }: ProtectedRouteProps) {
-  const { isAuthReady } = useAuthContext()
+  const { isAuthReady, authError } = useAuthContext()
 
   if (!isAuthReady) {
     return <LoadingSpinner />
+  }
+
+  // Show error banner if auth had issues, but still render the app
+  if (authError) {
+    return (
+      <>
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-sm text-amber-800">
+          {authError}
+        </div>
+        {children}
+      </>
+    )
   }
 
   return <>{children}</>

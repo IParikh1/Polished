@@ -5,11 +5,13 @@ import { setAuthToken } from '../api/batchClient'
 interface AuthContextValue {
   isAuthReady: boolean
   isAuthenticated: boolean
+  authError: string | null
 }
 
 const AuthContext = createContext<AuthContextValue>({
   isAuthReady: false,
   isAuthenticated: false,
+  authError: null,
 })
 
 export function useAuthContext() {
@@ -24,8 +26,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { getToken, isSignedIn, isLoaded } = useAuth()
   const { session } = useSession()
   const [isAuthReady, setIsAuthReady] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
+  const maxRetries = 3
 
-  const syncToken = useCallback(async () => {
+  const syncToken = useCallback(async (): Promise<boolean> => {
     if (!isLoaded) {
       return false
     }
@@ -35,6 +40,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const token = await getToken()
         if (token) {
           setAuthToken(token)
+          setAuthError(null)
           return true
         } else {
           console.warn('No token received from Clerk')
@@ -57,8 +63,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     async function initAuth() {
       const success = await syncToken()
-      if (mounted && success) {
-        setIsAuthReady(true)
+      if (mounted) {
+        if (success) {
+          setIsAuthReady(true)
+          setRetryCount(0)
+        } else if (retryCount < maxRetries) {
+          // Retry after a short delay
+          setTimeout(() => {
+            if (mounted) {
+              setRetryCount(prev => prev + 1)
+            }
+          }, 1000 * (retryCount + 1)) // Exponential backoff: 1s, 2s, 3s
+        } else {
+          // Max retries reached, set error and allow app to continue
+          setAuthError('Failed to initialize authentication. Please refresh the page.')
+          setIsAuthReady(true) // Allow app to render, but with error state
+        }
       }
     }
 
@@ -73,7 +93,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       mounted = false
       clearInterval(interval)
     }
-  }, [syncToken, isLoaded])
+  }, [syncToken, isLoaded, retryCount])
 
   // Also sync when session changes
   useEffect(() => {
@@ -85,6 +105,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value: AuthContextValue = {
     isAuthReady,
     isAuthenticated: isSignedIn ?? false,
+    authError,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
