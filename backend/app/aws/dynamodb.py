@@ -200,6 +200,7 @@ class DynamoDBClient:
             "filename": resume_data.get("filename", "unknown"),
             "s3_key": resume_data.get("s3_key"),
             "status": resume_data.get("status", "pending"),
+            "target_role": resume_data.get("target_role"),
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
             "scores": resume_data.get("scores", {}),

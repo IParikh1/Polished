@@ -361,14 +361,30 @@
 - TypeScript compilation verified: No errors
 
 - **Fixed target_role not displaying in Rankings table**
-- Root cause: `target_role` was being stored correctly but not returned in the API response
+- Root cause 1: `target_role` was not being returned in the API response
+- Root cause 2: `target_role` was not being stored in DynamoDB at all!
 - **Fix Details:**
   1. Added `target_role: Optional[str] = None` to `ResumeResponse` model in batch_schemas.py
   2. Added `target_role=r.get("target_role")` when constructing ResumeResponse in rankings endpoint
+  3. **Critical fix**: Added `target_role` to `add_resume_to_batch` item dict in dynamodb.py
 - Files modified:
   - backend/app/models/batch_schemas.py - Added target_role field to ResumeResponse
   - backend/app/api/batch_routes.py - Include target_role in rankings response construction
-- Python syntax verified: No errors
+  - backend/app/aws/dynamodb.py - Store target_role in DynamoDB item
+
+- **Fixed filename not visible in per-file role assignment UI**
+- Root cause: Filename span had `min-w-0` allowing it to collapse to zero width
+- **Fix Details:**
+  - Restructured file row to show filename prominently with file size
+  - Added `flex-shrink-0` to dropdown and remove button to prevent them from squeezing filename
+  - Added tooltip (title attribute) for long filenames
+- Files modified:
+  - frontend/src/components/batch/BatchUpload.tsx - Improved per-file role assignment UI layout
+
+**DynamoDB Schema Note:**
+- No schema changes needed for DynamoDB tables - `target_role` is just a new attribute
+- DynamoDB is schemaless, so new attributes can be added without migration
+- Existing resumes will have `target_role: null`, new uploads will have the assigned role
 
 ### January 25, 2026 (Session 14 - Per-File Role Selection)
 - **Feature: Per-file role selection during batch upload**
