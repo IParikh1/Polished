@@ -1,10 +1,13 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { FileText, MessageSquare, BarChart3, Settings, Menu, X, Sparkles, HelpCircle, Crown, CreditCard } from 'lucide-react'
+import { FileText, MessageSquare, BarChart3, Settings, Menu, X, Sparkles, HelpCircle, Crown, CreditCard, User } from 'lucide-react'
 import { useState } from 'react'
 import { UserButton } from '@clerk/clerk-react'
 import clsx from 'clsx'
 import { useAuthSync } from '../hooks/useAuthSync'
 import { useSubscription, useCreatePortal } from '../hooks/useSubscription'
+
+// Check if Clerk is configured
+const isClerkConfigured = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.startsWith('pk_')
 
 const navigation = [
   { name: 'Batches', href: '/batches', icon: FileText },
@@ -183,14 +186,20 @@ export default function Layout() {
             <Link to="/help" className="btn-secondary">
               <span className="hidden sm:inline">Documentation</span>
             </Link>
-            <UserButton
-              afterSignOutUrl="/sign-in"
-              appearance={{
-                elements: {
-                  avatarBox: 'w-9 h-9',
-                },
-              }}
-            />
+            {isClerkConfigured ? (
+              <UserButton
+                afterSignOutUrl="/sign-in"
+                appearance={{
+                  elements: {
+                    avatarBox: 'w-9 h-9',
+                  },
+                }}
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center">
+                <User className="w-5 h-5 text-gray-500" />
+              </div>
+            )}
           </div>
         </header>
 

@@ -9,8 +9,11 @@ import './index.css'
 // Get Clerk publishable key from environment
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
-if (!CLERK_PUBLISHABLE_KEY) {
-  console.warn('Missing VITE_CLERK_PUBLISHABLE_KEY - auth features will be disabled')
+// Check if Clerk is properly configured (key must start with pk_)
+const isClerkConfigured = CLERK_PUBLISHABLE_KEY && CLERK_PUBLISHABLE_KEY.startsWith('pk_')
+
+if (!isClerkConfigured) {
+  console.warn('Clerk not configured - auth features will be disabled. Set VITE_CLERK_PUBLISHABLE_KEY to enable.')
 }
 
 const queryClient = new QueryClient({
@@ -22,17 +25,35 @@ const queryClient = new QueryClient({
   },
 })
 
+// Wrapper component that conditionally uses ClerkProvider
+function AppWrapper() {
+  if (isClerkConfigured) {
+    return (
+      <ClerkProvider
+        publishableKey={CLERK_PUBLISHABLE_KEY}
+        afterSignOutUrl="/"
+      >
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </QueryClientProvider>
+      </ClerkProvider>
+    )
+  }
+
+  // Without Clerk, render the app without auth
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </QueryClientProvider>
+  )
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ClerkProvider
-      publishableKey={CLERK_PUBLISHABLE_KEY || 'pk_test_placeholder'}
-      afterSignOutUrl="/"
-    >
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </QueryClientProvider>
-    </ClerkProvider>
+    <AppWrapper />
   </React.StrictMode>,
 )
