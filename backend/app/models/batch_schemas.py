@@ -225,6 +225,7 @@ class ResumeResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     rank: Optional[int] = None
+    target_role: Optional[str] = None
     scores: Optional[ScoreBreakdown] = None
     extracted_data: Optional[ExtractedResumeData] = None
     jd_match: Optional[JDMatchDetails] = None

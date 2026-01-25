@@ -1,6 +1,6 @@
 # Polished Tech Sales Features - Progress Tracker
 
-**Last Updated:** January 25, 2026 (Session 14 - Per-File Role Selection)
+**Last Updated:** January 25, 2026 (Session 15 - Export Feature Fix)
 **Overall Status:** 🟡 In Progress - Auth Complete, Paywall Pending, Scoring Enhanced
 
 ---
@@ -340,6 +340,35 @@
 ---
 
 ## Notes & Decisions
+
+### January 25, 2026 (Session 15 - Export Feature Fix + Target Role Display Fix)
+- **Verified and documented batch export feature**
+- Export functionality was already correctly implemented
+- JD Matching option in export popup now properly greys out when no job description was provided for the batch
+- **Export Implementation Details:**
+  - ExportButton.tsx already had `hasJobDescription` prop support
+  - BatchDashboard.tsx already passes `hasJobDescription={!!selectedBatch.job_description}` to ExportButton
+  - JD Matching checkbox is disabled and styled with opacity-50 when no JD provided
+  - Export flow: Frontend calls API → Backend generates CSV/JSON → S3 upload → Presigned URL returned → Browser opens new tab
+- Files verified:
+  - frontend/src/components/batch/ExportButton.tsx - JD option greyed out correctly
+  - frontend/src/pages/BatchDashboard.tsx - Passes hasJobDescription prop
+  - frontend/src/hooks/useRankings.ts - useExportBatch hook correct
+  - frontend/src/api/batchClient.ts - exportBatch function correct
+  - backend/app/api/batch_routes.py - Export endpoint working
+  - backend/app/services/aws_store.py - create_export method correct
+  - backend/app/aws/s3.py - S3 save_export and presigned URL generation correct
+- TypeScript compilation verified: No errors
+
+- **Fixed target_role not displaying in Rankings table**
+- Root cause: `target_role` was being stored correctly but not returned in the API response
+- **Fix Details:**
+  1. Added `target_role: Optional[str] = None` to `ResumeResponse` model in batch_schemas.py
+  2. Added `target_role=r.get("target_role")` when constructing ResumeResponse in rankings endpoint
+- Files modified:
+  - backend/app/models/batch_schemas.py - Added target_role field to ResumeResponse
+  - backend/app/api/batch_routes.py - Include target_role in rankings response construction
+- Python syntax verified: No errors
 
 ### January 25, 2026 (Session 14 - Per-File Role Selection)
 - **Feature: Per-file role selection during batch upload**

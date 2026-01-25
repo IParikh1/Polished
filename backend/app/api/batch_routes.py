@@ -738,6 +738,7 @@ async def get_rankings(
             created_at=datetime.fromisoformat(r["created_at"]),
             updated_at=datetime.fromisoformat(r["updated_at"]),
             rank=r.get("rank"),
+            target_role=r.get("target_role"),
             scores=scores_data,
             extracted_data=r.get("extracted_data") or None,
             jd_match=r.get("jd_match_details"),
