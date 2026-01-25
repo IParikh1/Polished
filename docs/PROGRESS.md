@@ -255,6 +255,9 @@
 | BF.5 | Real-time resume count sync after uploads | 🟢 | Completed Jan 23, 2026 - Invalidate all queries |
 | BF.6 | Manual batch close/complete feature - Backend | 🟢 | Completed Jan 23, 2026 - POST /batches/{id}/close |
 | BF.7 | Manual batch close/complete feature - Frontend | 🟢 | Completed Jan 23, 2026 - View Rankings button |
+| BF.8 | Fix Clerk auth token sync timing | 🟢 | Completed Jan 25, 2026 - Wait for Clerk to load before API calls |
+| BF.9 | Fix JWKS URL construction in backend | 🟢 | Completed Jan 25, 2026 - Extract issuer from JWT token |
+| BF.10 | Fix 401 redirect loop | 🟢 | Completed Jan 25, 2026 - Avoid redirect loops on sign-in page |
 
 ---
 
@@ -264,7 +267,7 @@
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| A.1 | Create Clerk account and configure app | 🟡 | User needs to create account at clerk.com |
+| A.1 | Create Clerk account and configure app | 🟢 | Completed Jan 25, 2026 - User created account |
 | A.2 | Install Clerk packages (frontend) | 🟢 | Completed Jan 24, 2026 - @clerk/clerk-react added |
 | A.3 | Create ClerkProvider wrapper | 🟢 | Completed Jan 24, 2026 - main.tsx updated |
 | A.4 | Create SignInPage component | 🟢 | Completed Jan 24, 2026 - components/auth/SignInPage.tsx |
@@ -281,7 +284,7 @@
 | A.10 | Create backend auth middleware | 🟢 | Completed Jan 24, 2026 - middleware/auth.py |
 | A.11 | Update batch_routes.py for user isolation | 🟢 | Completed Jan 24, 2026 - All endpoints protected |
 | A.12 | Update aws_store.py for user scoping | 🟢 | Completed Jan 24, 2026 - user_id passed to all ops |
-| A.13 | Test full auth flow E2E | 🟡 | Pending - Needs Clerk keys configured |
+| A.13 | Test full auth flow E2E | 🟢 | Completed Jan 25, 2026 - Auth working, bug fixes applied |
 
 ---
 
@@ -333,6 +336,24 @@
 ---
 
 ## Notes & Decisions
+
+### January 25, 2026 (Session 12)
+- **Clerk Auth Bug Fixes**
+- User completed Clerk account setup - auth working
+- Fixed "Create Batches" button not working:
+  - Root cause 1: Backend JWKS URL was incorrectly constructed from publishable key
+  - Fix: Extract issuer URL from JWT token's `iss` claim for JWKS lookup
+  - Root cause 2: Frontend token sync wasn't waiting for Clerk to load
+  - Fix: Added `isLoaded` and `session` dependencies to useAuthSync hook
+  - Root cause 3: 401 response was causing redirect loop
+  - Fix: Avoid redirect when already on sign-in page, use replace() instead of href
+- Files modified:
+  - backend/app/middleware/auth.py - Fixed JWKS URL extraction
+  - frontend/src/hooks/useAuthSync.ts - Added proper Clerk loading checks
+  - frontend/src/api/batchClient.ts - Fixed 401 redirect handling
+  - frontend/src/App.tsx - Lazy load auth pages
+  - frontend/src/components/auth/SignInPage.tsx - Redirect when Clerk not configured
+  - frontend/src/components/auth/SignUpPage.tsx - Redirect when Clerk not configured
 
 ### January 24, 2026 (Session 11 - Continued)
 - **Pushed all auth changes to GitHub**
