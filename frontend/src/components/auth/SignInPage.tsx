@@ -1,7 +1,15 @@
 import { SignIn } from '@clerk/clerk-react'
 import { FileText } from 'lucide-react'
+import { Navigate } from 'react-router-dom'
+
+const isClerkConfigured = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.startsWith('pk_')
 
 export default function SignInPage() {
+  // If Clerk isn't configured, redirect to main app (auth is bypassed)
+  if (!isClerkConfigured) {
+    return <Navigate to="/" replace />
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="flex items-center gap-2 mb-8">

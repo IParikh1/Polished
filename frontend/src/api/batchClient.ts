@@ -35,8 +35,18 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid - redirect to sign-in
-      window.location.href = '/sign-in'
+      // Token expired or invalid
+      // Don't redirect if we're already on the sign-in page to avoid loops
+      if (!window.location.pathname.startsWith('/sign-in')) {
+        // Clear the auth token since it's invalid
+        authToken = null
+        // Only redirect if Clerk is configured, otherwise just reject
+        const isClerkConfigured = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.startsWith('pk_')
+        if (isClerkConfigured) {
+          // Use replace to avoid back button issues
+          window.location.replace('/sign-in')
+        }
+      }
     }
     return Promise.reject(error)
   }

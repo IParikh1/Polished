@@ -15,22 +15,60 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 # Clerk configuration
 CLERK_PUBLISHABLE_KEY = os.getenv("CLERK_PUBLISHABLE_KEY", "")
 CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY", "")
+# Clerk issuer URL - can be set directly or will be extracted from token
+CLERK_ISSUER_URL = os.getenv("CLERK_ISSUER_URL", "")
 
-# Extract Clerk instance ID from publishable key (pk_live_xxx or pk_test_xxx)
-# The JWKS URL uses the Clerk frontend API domain
+
+def get_clerk_jwks_url_from_token(token: str) -> Optional[str]:
+    """
+    Extract the JWKS URL from the token's issuer claim.
+    Clerk tokens contain an 'iss' claim like 'https://clerk.your-domain.com' or
+    'https://xxx.clerk.accounts.dev'
+    """
+    try:
+        # Decode without verification to get the issuer
+        unverified = jwt.decode(token, options={"verify_signature": False})
+        issuer = unverified.get("iss", "")
+        if issuer:
+            return f"{issuer}/.well-known/jwks.json"
+    except Exception:
+        pass
+    return None
+
+
 def get_clerk_jwks_url() -> str:
     """Get the JWKS URL for Clerk token verification."""
-    if CLERK_PUBLISHABLE_KEY.startswith("pk_test_"):
-        # Test/development instance
-        instance_id = CLERK_PUBLISHABLE_KEY.replace("pk_test_", "")
-    elif CLERK_PUBLISHABLE_KEY.startswith("pk_live_"):
-        # Production instance
-        instance_id = CLERK_PUBLISHABLE_KEY.replace("pk_live_", "")
-    else:
-        instance_id = ""
+    # If issuer URL is explicitly set, use it
+    if CLERK_ISSUER_URL:
+        return f"{CLERK_ISSUER_URL}/.well-known/jwks.json"
 
-    # Clerk JWKS endpoint
-    return f"https://{instance_id}.clerk.accounts.dev/.well-known/jwks.json"
+    # Fallback: try to construct from publishable key (may not work for all setups)
+    # The publishable key contains a base64-encoded JSON with the frontend API URL
+    if CLERK_PUBLISHABLE_KEY:
+        try:
+            import base64
+            # The part after pk_test_ or pk_live_ is base64-encoded
+            if CLERK_PUBLISHABLE_KEY.startswith("pk_test_"):
+                encoded = CLERK_PUBLISHABLE_KEY.replace("pk_test_", "")
+            elif CLERK_PUBLISHABLE_KEY.startswith("pk_live_"):
+                encoded = CLERK_PUBLISHABLE_KEY.replace("pk_live_", "")
+            else:
+                encoded = ""
+
+            if encoded:
+                # Add padding if needed
+                padding = 4 - len(encoded) % 4
+                if padding != 4:
+                    encoded += "=" * padding
+                decoded = base64.b64decode(encoded).decode('utf-8')
+                # The decoded string is the Clerk frontend API domain
+                # Format: clerk.xxx.xxx or xxx.clerk.accounts.dev
+                return f"https://{decoded}/.well-known/jwks.json"
+        except Exception as e:
+            print(f"Failed to decode Clerk publishable key: {e}")
+
+    # Last resort fallback
+    return ""
 
 
 # Security scheme for Bearer tokens
@@ -74,8 +112,19 @@ def verify_clerk_token(token: str) -> Optional[dict]:
         Decoded token payload if valid, None otherwise
     """
     try:
-        # Get the signing key from Clerk's JWKS
-        jwks_client = get_jwks_client()
+        # First, try to get JWKS URL from the token's issuer claim
+        jwks_url = get_clerk_jwks_url_from_token(token)
+
+        if not jwks_url:
+            # Fallback to configured/computed JWKS URL
+            jwks_url = get_clerk_jwks_url()
+
+        if not jwks_url:
+            print("No JWKS URL available - cannot verify token")
+            return None
+
+        # Create a JWKS client for this specific URL
+        jwks_client = PyJWKClient(jwks_url)
         signing_key = jwks_client.get_signing_key_from_jwt(token)
 
         # Decode and verify the token

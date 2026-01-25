@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { useAuth } from '@clerk/clerk-react'
+import { useEffect, useCallback } from 'react'
+import { useAuth, useSession } from '@clerk/clerk-react'
 import { setAuthToken } from '../api/batchClient'
 
 // Check if Clerk is configured - this is determined at module load time
@@ -24,28 +24,39 @@ function useAuthSyncNoOp() {
 
 // Version that syncs with Clerk auth
 function useAuthSyncWithClerk() {
-  const { getToken, isSignedIn } = useAuth()
+  const { getToken, isSignedIn, isLoaded } = useAuth()
+  const { session } = useSession()
 
-  useEffect(() => {
-    async function syncToken() {
-      if (isSignedIn) {
-        try {
-          const token = await getToken()
-          setAuthToken(token)
-        } catch (error) {
-          console.error('Failed to get auth token:', error)
-          setAuthToken(null)
-        }
-      } else {
-        setAuthToken(null)
-      }
+  const syncToken = useCallback(async () => {
+    if (!isLoaded) {
+      // Auth not loaded yet, wait
+      return
     }
 
+    if (isSignedIn && session) {
+      try {
+        const token = await getToken()
+        if (token) {
+          setAuthToken(token)
+        } else {
+          console.warn('No token received from Clerk')
+          setAuthToken(null)
+        }
+      } catch (error) {
+        console.error('Failed to get auth token:', error)
+        setAuthToken(null)
+      }
+    } else {
+      setAuthToken(null)
+    }
+  }, [getToken, isSignedIn, isLoaded, session])
+
+  useEffect(() => {
     syncToken()
 
     // Refresh token periodically (every 5 minutes)
     const interval = setInterval(syncToken, 5 * 60 * 1000)
 
     return () => clearInterval(interval)
-  }, [getToken, isSignedIn])
+  }, [syncToken])
 }
