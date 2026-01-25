@@ -205,10 +205,10 @@ export default function BatchUpload({ batchId, showRoleSelector = true }: BatchU
               {pendingFiles.map((pf, index) => (
                 <div
                   key={`${pf.file.name}-${index}`}
-                  className="flex items-center gap-3 p-3 bg-white rounded-md border border-gray-200"
+                  className="grid grid-cols-[auto_1fr_160px_auto] items-center gap-3 p-3 bg-white rounded-md border border-gray-200"
                 >
-                  <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
+                  <FileText className="w-4 h-4 text-gray-400" />
+                  <div className="min-w-0 overflow-hidden">
                     <div className="text-sm font-medium text-gray-900 truncate" title={pf.file.name}>
                       {pf.file.name}
                     </div>
@@ -216,15 +216,16 @@ export default function BatchUpload({ batchId, showRoleSelector = true }: BatchU
                       {(pf.file.size / 1024).toFixed(1)} KB
                     </div>
                   </div>
-                  <SalesRoleDropdown
-                    value={pf.targetRole}
-                    onChange={(role) => handleFileRoleChange(index, role)}
-                    className="w-40 flex-shrink-0"
-                    placeholder="Select role..."
-                  />
+                  <div>
+                    <SalesRoleDropdown
+                      value={pf.targetRole}
+                      onChange={(role) => handleFileRoleChange(index, role)}
+                      placeholder="Select role..."
+                    />
+                  </div>
                   <button
                     onClick={() => handleRemoveFile(index)}
-                    className="p-1 text-gray-400 hover:text-danger-600 hover:bg-danger-50 rounded flex-shrink-0"
+                    className="p-1 text-gray-400 hover:text-danger-600 hover:bg-danger-50 rounded"
                   >
                     <X className="w-4 h-4" />
                   </button>
