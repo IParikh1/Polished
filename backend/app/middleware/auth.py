@@ -90,17 +90,18 @@ class AuthenticatedUser:
         return " ".join(p for p in parts if p) or "Unknown User"
 
 
-# Cache for JWKS client
-_jwks_client: Optional[PyJWKClient] = None
+# Cache for JWKS clients - keyed by URL to support multiple issuers
+_jwks_clients: dict[str, PyJWKClient] = {}
 
 
-def get_jwks_client() -> PyJWKClient:
-    """Get or create the JWKS client for token verification."""
-    global _jwks_client
-    if _jwks_client is None:
-        jwks_url = get_clerk_jwks_url()
-        _jwks_client = PyJWKClient(jwks_url)
-    return _jwks_client
+def get_jwks_client(jwks_url: str) -> PyJWKClient:
+    """
+    Get or create a cached JWKS client for the given URL.
+    Caches clients per URL to avoid repeated network calls.
+    """
+    if jwks_url not in _jwks_clients:
+        _jwks_clients[jwks_url] = PyJWKClient(jwks_url)
+    return _jwks_clients[jwks_url]
 
 
 def verify_clerk_token(token: str) -> Optional[dict]:
@@ -122,8 +123,8 @@ def verify_clerk_token(token: str) -> Optional[dict]:
             print("No JWKS URL available - cannot verify token")
             return None
 
-        # Create a JWKS client for this specific URL
-        jwks_client = PyJWKClient(jwks_url)
+        # Get cached JWKS client for this URL
+        jwks_client = get_jwks_client(jwks_url)
         signing_key = jwks_client.get_signing_key_from_jwt(token)
 
         # Decode and verify the token

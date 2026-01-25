@@ -1,6 +1,7 @@
-import { useAuth, RedirectToSignIn } from '@clerk/clerk-react'
+import { useAuth, useClerk, RedirectToSignIn } from '@clerk/clerk-react'
 import { ReactNode } from 'react'
 import { AuthProvider, useAuthContext } from '../../contexts/AuthContext'
+import { RefreshCw, LogOut } from 'lucide-react'
 
 interface ProtectedRouteProps {
   children: ReactNode
@@ -43,6 +44,7 @@ function ProtectedRouteWithAuth({ children }: ProtectedRouteProps) {
 // Waits for auth token to be ready before rendering children
 function AuthGuard({ children }: ProtectedRouteProps) {
   const { isAuthReady, authError } = useAuthContext()
+  const { signOut } = useClerk()
 
   if (!isAuthReady) {
     return <LoadingSpinner />
@@ -52,8 +54,24 @@ function AuthGuard({ children }: ProtectedRouteProps) {
   if (authError) {
     return (
       <>
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-sm text-amber-800">
-          {authError}
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 flex items-center justify-between">
+          <span className="text-sm text-amber-800">{authError}</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Refresh
+            </button>
+            <button
+              onClick={() => signOut({ redirectUrl: '/sign-in' })}
+              className="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign Out
+            </button>
+          </div>
         </div>
         {children}
       </>
