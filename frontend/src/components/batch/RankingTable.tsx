@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Download, Star, Target, Sparkles } from 'lucide-react'
 import type { Resume } from '../../api/batchClient'
+import { SalesRoleBadge } from './SalesRoleSelector'
 import ScoreBreakdown from './ScoreBreakdown'
 import DeepAnalysisModal from './DeepAnalysisModal'
 import JDMatcherModal from './JDMatcherModal'
@@ -58,6 +59,7 @@ export default function RankingTable({ resumes, batchId, hasJdMatching }: Rankin
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Rank</th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Candidate</th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Score</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Target Role</th>
               {hasJdMatching && (
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">JD Match</th>
               )}
@@ -109,6 +111,9 @@ export default function RankingTable({ resumes, batchId, hasJdMatching }: Rankin
                       <Star className="w-4 h-4" />
                       {resume.scores?.overall?.toFixed(1) || '-'}
                     </div>
+                  </td>
+                  <td className="py-3 px-4">
+                    <SalesRoleBadge role={resume.target_role} size="xs" />
                   </td>
                   {hasJdMatching && (
                     <td className="py-3 px-4">
@@ -189,7 +194,7 @@ export default function RankingTable({ resumes, batchId, hasJdMatching }: Rankin
                 </tr>
                 {expandedId === resume.resume_id && (
                   <tr>
-                    <td colSpan={hasJdMatching ? 6 : 5} className="px-4 py-4 bg-gray-50">
+                    <td colSpan={hasJdMatching ? 7 : 6} className="px-4 py-4 bg-gray-50">
                       <ScoreBreakdown resume={resume} hasJdMatching={hasJdMatching} />
                     </td>
                   </tr>

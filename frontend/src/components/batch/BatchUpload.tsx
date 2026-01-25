@@ -1,13 +1,19 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, FileText, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { Upload, FileText, X, CheckCircle2, AlertCircle, Loader2, Settings2 } from 'lucide-react'
 import { useUpload } from '../../hooks/useUpload'
-import { SalesRoleSelector, type SalesRole } from './SalesRoleSelector'
+import { SalesRoleSelector, SalesRoleDropdown, type SalesRole } from './SalesRoleSelector'
+import type { FileWithRole } from '../../api/batchClient'
 import clsx from 'clsx'
 
 interface BatchUploadProps {
   batchId: string
   showRoleSelector?: boolean
+}
+
+interface PendingFile {
+  file: File
+  targetRole: SalesRole | null
 }
 
 const ACCEPTED_TYPES = {
@@ -19,38 +25,73 @@ const ACCEPTED_TYPES = {
 }
 
 export default function BatchUpload({ batchId, showRoleSelector = true }: BatchUploadProps) {
-  const { uploadedCount, totalCount, errors, upload, reset, isLoading } = useUpload(batchId)
-  const [targetRole, setTargetRole] = useState<SalesRole | null>(null)
-  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const { uploadedCount, totalCount, errors, upload, uploadWithRoles, reset, isLoading } = useUpload(batchId)
+  const [defaultRole, setDefaultRole] = useState<SalesRole | null>(null)
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
+  const [usePerFileRoles, setUsePerFileRoles] = useState(false)
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       if (acceptedFiles.length > 0) {
-        if (showRoleSelector && !targetRole) {
-          // Store files and wait for role selection
-          setPendingFiles(acceptedFiles)
+        if (showRoleSelector) {
+          // Store files with default role and wait for user to configure
+          const filesWithDefaultRole = acceptedFiles.map((file) => ({
+            file,
+            targetRole: defaultRole,
+          }))
+          setPendingFiles(filesWithDefaultRole)
         } else {
-          // Upload immediately with role
-          upload(acceptedFiles, targetRole || undefined)
+          // Upload immediately without role selection
+          upload(acceptedFiles)
         }
       }
     },
-    [upload, targetRole, showRoleSelector]
+    [upload, defaultRole, showRoleSelector]
   )
 
-  const handleUploadWithRole = useCallback(() => {
-    if (pendingFiles.length > 0) {
-      upload(pendingFiles, targetRole || undefined)
-      setPendingFiles([])
+  const handleUpload = useCallback(() => {
+    if (pendingFiles.length === 0) return
+
+    if (usePerFileRoles) {
+      // Upload with per-file roles
+      const filesWithRoles: FileWithRole[] = pendingFiles.map((pf) => ({
+        file: pf.file,
+        targetRole: pf.targetRole || undefined,
+      }))
+      uploadWithRoles(filesWithRoles)
+    } else {
+      // Upload all files with the same default role
+      const files = pendingFiles.map((pf) => pf.file)
+      upload(files, defaultRole || undefined)
     }
-  }, [pendingFiles, targetRole, upload])
+    setPendingFiles([])
+  }, [pendingFiles, usePerFileRoles, defaultRole, upload, uploadWithRoles])
 
   const handleCancelPending = useCallback(() => {
     setPendingFiles([])
-    setTargetRole(null)
+    setUsePerFileRoles(false)
   }, [])
 
-  const { getRootProps, getInputProps, isDragActive, acceptedFiles } = useDropzone({
+  const handleApplyDefaultRoleToAll = useCallback(() => {
+    setPendingFiles((prev) =>
+      prev.map((pf) => ({
+        ...pf,
+        targetRole: defaultRole,
+      }))
+    )
+  }, [defaultRole])
+
+  const handleFileRoleChange = useCallback((index: number, role: SalesRole | null) => {
+    setPendingFiles((prev) =>
+      prev.map((pf, i) => (i === index ? { ...pf, targetRole: role } : pf))
+    )
+  }, [])
+
+  const handleRemoveFile = useCallback((index: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: ACCEPTED_TYPES,
     maxFiles: 100,
@@ -62,8 +103,8 @@ export default function BatchUpload({ batchId, showRoleSelector = true }: BatchU
       {/* Role Selector - Show before upload if enabled */}
       {showRoleSelector && pendingFiles.length === 0 && !isLoading && uploadedCount === 0 && (
         <SalesRoleSelector
-          value={targetRole}
-          onChange={setTargetRole}
+          value={defaultRole}
+          onChange={setDefaultRole}
           disabled={isLoading}
         />
       )}
@@ -96,39 +137,100 @@ export default function BatchUpload({ batchId, showRoleSelector = true }: BatchU
             <p className="text-sm text-gray-500">
               or click to browse. Supports PDF, DOCX, DOC, TXT, RTF
             </p>
-            {targetRole && (
+            {defaultRole && (
               <p className="text-sm text-primary-600 mt-2">
-                Resumes will be optimized for: <strong>{targetRole.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</strong>
+                Default role: <strong>{defaultRole.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</strong>
               </p>
             )}
           </>
         )}
       </div>
 
-      {/* Pending Files - Need Role Selection */}
+      {/* Pending Files - Configure roles before upload */}
       {pendingFiles.length > 0 && !isLoading && (
         <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-          <div className="flex items-start gap-3 mb-4">
-            <FileText className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="font-medium text-amber-800 mb-1">
-                {pendingFiles.length} file{pendingFiles.length !== 1 ? 's' : ''} ready to upload
-              </p>
-              <p className="text-sm text-amber-700">
-                Select a target role for optimized analysis (optional)
-              </p>
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="flex items-start gap-3">
+              <FileText className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-amber-800 mb-1">
+                  {pendingFiles.length} file{pendingFiles.length !== 1 ? 's' : ''} ready to upload
+                </p>
+                <p className="text-sm text-amber-700">
+                  {usePerFileRoles
+                    ? 'Assign a target role to each resume individually'
+                    : 'All resumes will use the same target role'}
+                </p>
+              </div>
             </div>
+            <button
+              onClick={() => setUsePerFileRoles(!usePerFileRoles)}
+              className={clsx(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                usePerFileRoles
+                  ? 'bg-primary-100 text-primary-700'
+                  : 'bg-white text-gray-600 hover:bg-gray-100'
+              )}
+            >
+              <Settings2 className="w-4 h-4" />
+              {usePerFileRoles ? 'Per-file roles ON' : 'Per-file roles'}
+            </button>
           </div>
 
-          <SalesRoleSelector
-            value={targetRole}
-            onChange={setTargetRole}
-            className="mb-4"
-          />
+          {!usePerFileRoles ? (
+            // Single role for all files
+            <div className="mb-4">
+              <SalesRoleSelector
+                value={defaultRole}
+                onChange={setDefaultRole}
+                className="mb-2"
+              />
+            </div>
+          ) : (
+            // Per-file role selection
+            <div className="mb-4 space-y-2 max-h-64 overflow-y-auto">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">
+                  Assign roles to each file:
+                </span>
+                {defaultRole && (
+                  <button
+                    onClick={handleApplyDefaultRoleToAll}
+                    className="text-xs text-primary-600 hover:text-primary-700"
+                  >
+                    Apply "{defaultRole.replace(/_/g, ' ')}" to all
+                  </button>
+                )}
+              </div>
+              {pendingFiles.map((pf, index) => (
+                <div
+                  key={`${pf.file.name}-${index}`}
+                  className="flex items-center gap-3 p-2 bg-white rounded-md border border-gray-200"
+                >
+                  <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <span className="text-sm text-gray-700 flex-1 truncate min-w-0">
+                    {pf.file.name}
+                  </span>
+                  <SalesRoleDropdown
+                    value={pf.targetRole}
+                    onChange={(role) => handleFileRoleChange(index, role)}
+                    className="w-44"
+                    placeholder="Select role..."
+                  />
+                  <button
+                    onClick={() => handleRemoveFile(index)}
+                    className="p-1 text-gray-400 hover:text-danger-600 hover:bg-danger-50 rounded"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <button
-              onClick={handleUploadWithRole}
+              onClick={handleUpload}
               className="btn btn-primary"
             >
               Upload {pendingFiles.length} Resume{pendingFiles.length !== 1 ? 's' : ''}
@@ -176,13 +278,8 @@ export default function BatchUpload({ batchId, showRoleSelector = true }: BatchU
             <span className="font-medium text-success-700">
               Successfully uploaded {uploadedCount} resume{uploadedCount !== 1 ? 's' : ''}
             </span>
-            {targetRole && (
-              <span className="text-success-600 text-sm block">
-                Targeting: {targetRole.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-              </span>
-            )}
           </div>
-          <button onClick={() => { reset(); setTargetRole(null); }} className="text-success-600 hover:text-success-700">
+          <button onClick={() => { reset(); setDefaultRole(null); setUsePerFileRoles(false); }} className="text-success-600 hover:text-success-700">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -212,28 +309,6 @@ export default function BatchUpload({ batchId, showRoleSelector = true }: BatchU
               <X className="w-4 h-4" />
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Selected Files Preview (when role is pre-selected) */}
-      {!isLoading && !showRoleSelector && acceptedFiles.length > 0 && uploadedCount === 0 && pendingFiles.length === 0 && (
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <p className="font-medium text-gray-700 mb-2">
-            Selected {acceptedFiles.length} file{acceptedFiles.length !== 1 ? 's' : ''}:
-          </p>
-          <ul className="space-y-1 text-sm text-gray-600">
-            {acceptedFiles.slice(0, 5).map((file, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-gray-400" />
-                {file.name}
-              </li>
-            ))}
-            {acceptedFiles.length > 5 && (
-              <li className="text-gray-400">
-                ...and {acceptedFiles.length - 5} more
-              </li>
-            )}
-          </ul>
         </div>
       )}
     </div>

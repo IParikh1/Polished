@@ -68,6 +68,7 @@ export interface Resume {
   created_at: string
   updated_at: string
   rank?: number
+  target_role?: SalesRole
   scores?: {
     overall: number
     experience?: number
@@ -204,6 +205,11 @@ export async function uploadResume(
   return response.data
 }
 
+export interface FileWithRole {
+  file: File
+  targetRole?: SalesRole
+}
+
 export async function uploadMultipleResumes(
   batchId: string,
   files: File[],
@@ -215,6 +221,33 @@ export async function uploadMultipleResumes(
   })
   if (targetRole) {
     formData.append('target_role', targetRole)
+  }
+
+  const response = await api.post(`/batches/${batchId}/upload-multiple`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return response.data
+}
+
+export async function uploadMultipleResumesWithRoles(
+  batchId: string,
+  filesWithRoles: FileWithRole[]
+): Promise<{ batch_id: string; uploaded: number; failed: number; results: Array<{ resume_id?: string; filename: string; status: string; error?: string; target_role?: string }> }> {
+  const formData = new FormData()
+  const roleMapping: Record<string, string> = {}
+
+  filesWithRoles.forEach(({ file, targetRole }) => {
+    formData.append('files', file)
+    if (targetRole) {
+      roleMapping[file.name] = targetRole
+    }
+  })
+
+  // Send role mapping as JSON
+  if (Object.keys(roleMapping).length > 0) {
+    formData.append('role_mapping', JSON.stringify(roleMapping))
   }
 
   const response = await api.post(`/batches/${batchId}/upload-multiple`, formData, {

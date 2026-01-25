@@ -3,7 +3,7 @@ Batch API Routes for Polished Resume Ranking System.
 Handles batch creation, resume upload, scoring, and export.
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Query, BackgroundTasks, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Query, BackgroundTasks, Depends, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -464,21 +464,34 @@ async def upload_multiple_resumes(
     batch_id: str,
     files: List[UploadFile] = File(...),
     target_role: Optional[SalesRole] = None,
+    role_mapping: Optional[str] = Form(None),
     user: AuthenticatedUser = Depends(get_current_user)
 ):
     """
     Upload multiple resume files at once.
 
     - **target_role**: Optional target sales role for optimized analysis (applies to all files)
+    - **role_mapping**: Optional JSON string mapping filenames to roles for per-file role assignment
+                       Example: {"resume1.pdf": "sdr", "resume2.pdf": "account_executive"}
     """
+    import json
+
     store = get_store()
 
     # Verify ownership
     await verify_batch_ownership(batch_id, user.user_id)
 
+    # Parse role mapping if provided
+    file_role_map = {}
+    if role_mapping:
+        try:
+            file_role_map = json.loads(role_mapping)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid role_mapping JSON format")
+
     results = []
     allowed_types = [".pdf", ".doc", ".docx", ".txt", ".rtf"]
-    role_value = target_role.value if target_role else None
+    default_role_value = target_role.value if target_role else None
 
     for file in files:
         ext = "." + file.filename.lower().split(".")[-1] if "." in file.filename else ""
@@ -491,6 +504,9 @@ async def upload_multiple_resumes(
             })
             continue
 
+        # Get role for this specific file, or fall back to default
+        file_role = file_role_map.get(file.filename, default_role_value)
+
         try:
             content = await file.read()
             resume = await store.add_resume(
@@ -498,13 +514,13 @@ async def upload_multiple_resumes(
                 file.filename,
                 file_content=content,
                 content_type=file.content_type,
-                target_role=role_value,
+                target_role=file_role,
             )
             results.append({
                 "resume_id": resume["resume_id"],
                 "filename": resume["filename"],
                 "status": "uploaded",
-                "target_role": role_value,
+                "target_role": file_role,
             })
         except Exception as e:
             results.append({
@@ -518,7 +534,7 @@ async def upload_multiple_resumes(
         "uploaded": len([r for r in results if r["status"] == "uploaded"]),
         "failed": len([r for r in results if r["status"] == "error"]),
         "results": results,
-        "target_role": role_value,
+        "target_role": default_role_value,
     }
 
 

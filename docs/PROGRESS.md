@@ -1,6 +1,6 @@
 # Polished Tech Sales Features - Progress Tracker
 
-**Last Updated:** January 25, 2026 (Session 13 - Scoring Improvements)
+**Last Updated:** January 25, 2026 (Session 14 - Per-File Role Selection)
 **Overall Status:** 🟡 In Progress - Auth Complete, Paywall Pending, Scoring Enhanced
 
 ---
@@ -340,6 +340,32 @@
 ---
 
 ## Notes & Decisions
+
+### January 25, 2026 (Session 14 - Per-File Role Selection)
+- **Feature: Per-file role selection during batch upload**
+- Users can now assign different target roles to individual files within a single upload
+- Target role is now displayed in the Rankings table next to the score
+- **Implementation Details:**
+  - Frontend:
+    - Added `SalesRoleDropdown` and `SalesRoleBadge` components to SalesRoleSelector.tsx
+    - Updated BatchUpload.tsx with "Per-file roles" toggle button
+    - When enabled, shows each file with a dropdown to select its target role
+    - Added "Target Role" column to RankingTable.tsx
+    - Updated Resume type to include `target_role` field
+    - Added `uploadMultipleResumesWithRoles()` API function in batchClient.ts
+    - Added `uploadWithRoles()` method to useUpload hook
+  - Backend:
+    - Updated `/upload-multiple` endpoint to accept `role_mapping` JSON parameter
+    - Role mapping allows per-file role assignment: `{"file1.pdf": "sdr", "file2.pdf": "account_executive"}`
+    - Falls back to default `target_role` if file not in mapping
+- Files modified:
+  - frontend/src/components/batch/SalesRoleSelector.tsx - Added SalesRoleDropdown, SalesRoleBadge, getRoleDisplayName
+  - frontend/src/components/batch/BatchUpload.tsx - Added per-file role selection UI
+  - frontend/src/components/batch/RankingTable.tsx - Added Target Role column
+  - frontend/src/api/batchClient.ts - Added FileWithRole interface, uploadMultipleResumesWithRoles function, target_role to Resume type
+  - frontend/src/hooks/useUpload.ts - Added uploadWithRoles method
+  - backend/app/api/batch_routes.py - Added role_mapping parameter to upload-multiple endpoint
+- Test resumes created: 12 PDFs in test_resumes/ for validation (impressive/unimpressive for 6 role types)
 
 ### January 25, 2026 (Session 13 - Tech Sales Scoring Improvements + DevTeam Review)
 - **Redesigned scoring system for tech sales resumes**

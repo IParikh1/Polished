@@ -180,5 +180,70 @@ export function SalesRoleDisplay({ role }: { role: SalesRole | null }) {
   )
 }
 
+// Compact dropdown version for per-file role selection
+export function SalesRoleDropdown({
+  value,
+  onChange,
+  disabled,
+  className,
+  placeholder = 'Select role...',
+}: {
+  value: SalesRole | null
+  onChange: (role: SalesRole | null) => void
+  disabled?: boolean
+  className?: string
+  placeholder?: string
+}) {
+  return (
+    <select
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value ? (e.target.value as SalesRole) : null)}
+      disabled={disabled}
+      className={clsx(
+        'block w-full rounded-md border-gray-300 shadow-sm text-sm',
+        'focus:border-primary-500 focus:ring-primary-500',
+        disabled && 'opacity-50 cursor-not-allowed',
+        className
+      )}
+    >
+      <option value="">{placeholder}</option>
+      {salesRoles.map((role) => (
+        <option key={role.id} value={role.id}>
+          {role.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+// Get display name for a role
+export function getRoleDisplayName(role: SalesRole | null | undefined): string {
+  if (!role) return 'Not set'
+  const roleInfo = salesRoles.find((r) => r.id === role)
+  return roleInfo?.label || role.replace(/_/g, ' ')
+}
+
+// Badge component for displaying role
+export function SalesRoleBadge({ role, size = 'sm' }: { role: SalesRole | null | undefined; size?: 'sm' | 'xs' }) {
+  if (!role) return <span className="text-gray-400 text-xs">-</span>
+
+  const roleInfo = salesRoles.find((r) => r.id === role)
+  if (!roleInfo) return <span className="text-gray-400 text-xs">-</span>
+
+  const Icon = roleInfo.icon
+
+  return (
+    <div
+      className={clsx(
+        'inline-flex items-center gap-1 rounded-full bg-primary-50 text-primary-700',
+        size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-xs'
+      )}
+    >
+      <Icon className={size === 'sm' ? 'w-3 h-3' : 'w-2.5 h-2.5'} />
+      <span className="font-medium">{roleInfo.label}</span>
+    </div>
+  )
+}
+
 export { salesRoles }
 export default SalesRoleSelector

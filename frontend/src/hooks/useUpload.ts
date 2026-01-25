@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import * as batchApi from '../api/batchClient'
-import type { SalesRole } from '../api/batchClient'
+import type { SalesRole, FileWithRole } from '../api/batchClient'
 
 export interface UploadState {
   isUploading: boolean
@@ -48,6 +48,33 @@ export function useUpload(batchId: string) {
     },
   })
 
+  const uploadWithRolesMutation = useMutation({
+    mutationFn: (filesWithRoles: FileWithRole[]) =>
+      batchApi.uploadMultipleResumesWithRoles(batchId, filesWithRoles),
+    onSuccess: (data) => {
+      setState((prev) => ({
+        ...prev,
+        isUploading: false,
+        uploadedCount: data.uploaded,
+        errors: data.results
+          .filter((r) => r.status === 'error')
+          .map((r) => ({ filename: r.filename, error: r.error || 'Unknown error' })),
+      }))
+      // Invalidate all relevant queries to sync resume counts in real-time
+      queryClient.invalidateQueries({ queryKey: ['batch', batchId] })
+      queryClient.invalidateQueries({ queryKey: ['batch-resumes', batchId] })
+      queryClient.invalidateQueries({ queryKey: ['rankings', batchId] })
+      queryClient.invalidateQueries({ queryKey: ['batches'] })
+    },
+    onError: (error) => {
+      setState((prev) => ({
+        ...prev,
+        isUploading: false,
+        errors: [{ filename: 'Upload failed', error: error instanceof Error ? error.message : 'Unknown error' }],
+      }))
+    },
+  })
+
   const upload = useCallback(
     (files: File[], targetRole?: SalesRole) => {
       setState({
@@ -60,6 +87,20 @@ export function useUpload(batchId: string) {
       uploadMutation.mutate({ files, targetRole })
     },
     [uploadMutation]
+  )
+
+  const uploadWithRoles = useCallback(
+    (filesWithRoles: FileWithRole[]) => {
+      setState({
+        isUploading: true,
+        progress: 0,
+        uploadedCount: 0,
+        totalCount: filesWithRoles.length,
+        errors: [],
+      })
+      uploadWithRolesMutation.mutate(filesWithRoles)
+    },
+    [uploadWithRolesMutation]
   )
 
   const reset = useCallback(() => {
@@ -75,8 +116,9 @@ export function useUpload(batchId: string) {
   return {
     ...state,
     upload,
+    uploadWithRoles,
     reset,
-    isLoading: uploadMutation.isPending,
+    isLoading: uploadMutation.isPending || uploadWithRolesMutation.isPending,
   }
 }
 
