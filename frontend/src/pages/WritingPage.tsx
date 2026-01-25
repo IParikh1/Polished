@@ -9,13 +9,11 @@ import {
   ChevronRight,
   Loader2,
   AlertCircle,
-  Lock,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useBatches } from '../hooks/useBatches'
 import { useBatchResumes } from '../hooks/useRankings'
 import { useWritingStatus } from '../hooks/useResumeWriting'
-import { useSubscription } from '../hooks/useSubscription'
 import {
   ResumeWriter,
   MetricsExtractor,
@@ -72,9 +70,6 @@ export default function WritingPage() {
   const { data: batchesData, isLoading: batchesLoading } = useBatches()
   const { data: resumesData, isLoading: resumesLoading } = useBatchResumes(selectedBatchId || undefined)
   const { data: writingStatus, isLoading: statusLoading } = useWritingStatus()
-  const { data: subscription } = useSubscription()
-
-  const hasResumeWriting = subscription?.features?.includes('resume_writing') ?? false
 
   const selectedResume = resumesData?.resumes?.find(r => r.resume_id === selectedResumeId)
 

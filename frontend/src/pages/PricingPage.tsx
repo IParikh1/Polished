@@ -1,10 +1,8 @@
 import { Check, X, Zap, ChevronDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 import { usePricingInfo, useSubscription, useStripeConfig, useCreateCheckout } from '../hooks/useSubscription'
-import { useNavigate } from 'react-router-dom'
 
 export default function PricingPage() {
-  const navigate = useNavigate()
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null)
   const { data: pricingInfo, isLoading: pricingLoading } = usePricingInfo()
   const { data: subscription } = useSubscription()

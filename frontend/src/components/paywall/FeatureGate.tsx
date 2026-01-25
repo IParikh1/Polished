@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react'
 import { Lock } from 'lucide-react'
-import { useFeatureAccess, useSubscription } from '../../hooks/useSubscription'
+import { useSubscription } from '../../hooks/useSubscription'
 import UpgradeModal from './UpgradeModal'
 
 interface FeatureGateProps {
