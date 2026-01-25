@@ -1,7 +1,7 @@
 # Polished Tech Sales Features - Progress Tracker
 
-**Last Updated:** January 24, 2026 (Session 11 - Continued)
-**Overall Status:** 🟡 In Progress - Auth Complete, Paywall Pending
+**Last Updated:** January 25, 2026 (Session 13 - Scoring Improvements)
+**Overall Status:** 🟡 In Progress - Auth Complete, Paywall Pending, Scoring Enhanced
 
 ---
 
@@ -340,6 +340,33 @@
 ---
 
 ## Notes & Decisions
+
+### January 25, 2026 (Session 13 - Tech Sales Scoring Improvements)
+- **Redesigned scoring system for tech sales resumes**
+- Research conducted on 2025-2026 recruiter priorities:
+  - Sources: Resume Worded, Enhancv, Highspot, Everstage
+  - Key finding: Quantifiable achievements are #1 differentiator
+  - Average quota attainment: 43-65%, so 100%+ is impressive
+- **New Scoring Categories Added:**
+  1. **Achievements (18%)** - Quota %, revenue $, deals closed, rankings, activity metrics
+  2. **Certifications (8%)** - Salesforce, HubSpot, MEDDIC, Sandler certifications
+  3. **Career Progression (9%)** - SDR → AE → Senior AE trajectory
+- **Weight Adjustments (Tech Sales Profile):**
+  - Experience: 25% → 20%
+  - Skills: 30% → 20%
+  - Education: 15% → 5% (less important for sales)
+  - Formatting: 10% → 8%
+  - Keywords: 15% → 10%
+  - Contact Info: 5% → 2%
+- **Algorithm Enhancements:**
+  - Progressive scoring with smooth curves (not hard thresholds)
+  - Tech sales-specific skill categories (CRM, engagement, intelligence, prospecting tools)
+  - 2025-2026 tech stack: Salesforce, HubSpot, Gong, Outreach, Clay, 6sense, etc.
+- Files modified:
+  - backend/app/services/quick_scorer.py - Added TechSalesScoringWeights, 3 new scoring methods, TECH_SALES_SKILLS
+  - backend/app/models/batch_schemas.py - Added achievements, certifications, career_progression to ScoreBreakdown
+  - backend/app/services/batch_processor.py - Now uses tech sales scoring by default
+- New convenience functions: get_tech_sales_scorer(), score_tech_sales_resume()
 
 ### January 25, 2026 (Session 12 - Assessment & Implementation)
 - **Assessed Code Review Recommendations**

@@ -379,7 +379,7 @@ class BatchProcessor:
             if scoring_callback:
                 scores = await scoring_callback(text, extracted_data)
             else:
-                scores = self._default_scoring(text, extracted_data)
+                scores = await self._default_scoring(text, extracted_data)
 
             # Get overall score but keep it in scores dict for API responses
             overall_score = scores.get("overall", 0)
@@ -407,43 +407,20 @@ class BatchProcessor:
             print(f"Error processing resume {resume_id}: {e}")
             return {"success": False, "error": str(e)}
 
-    def _default_scoring(
+    async def _default_scoring(
         self,
         text: str,
         extracted_data: Dict[str, Any]
     ) -> Dict[str, float]:
-        """Default scoring algorithm when no callback provided."""
-        scores = {}
+        """
+        Default scoring algorithm when no callback provided.
+        Uses tech sales scoring by default for better resume evaluation.
+        """
+        # Import here to avoid circular imports
+        from .quick_scorer import score_tech_sales_resume
 
-        # Skills score (0-100)
-        skills = extracted_data.get("skills", [])
-        scores["skills"] = min(len(skills) * 10, 100)
-
-        # Experience score (0-100)
-        years = extracted_data.get("years_of_experience", 0) or 0
-        scores["experience"] = min(years * 10, 100)
-
-        # Education score (0-100)
-        education = extracted_data.get("education", [])
-        scores["education"] = min(len(education) * 25, 100)
-
-        # Formatting score (based on text structure)
-        line_count = len(text.split("\n"))
-        word_count = len(text.split())
-        scores["formatting"] = min(50 + (line_count * 0.5) + (word_count * 0.01), 100)
-
-        # Overall score (weighted average)
-        weights = {
-            "skills": 0.35,
-            "experience": 0.30,
-            "education": 0.20,
-            "formatting": 0.15,
-        }
-
-        overall = sum(scores.get(k, 0) * w for k, w in weights.items())
-        scores["overall"] = round(overall, 2)
-
-        return scores
+        # Use the enhanced tech sales scoring
+        return await score_tech_sales_resume(text, extracted_data)
 
     async def _calculate_rankings(self, batch_id: str) -> None:
         """Calculate and update rankings for all resumes in batch."""

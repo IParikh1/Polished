@@ -171,6 +171,11 @@ class ScoreBreakdown(BaseModel):
     education: Optional[float] = Field(None, ge=0, le=100, description="Education score")
     formatting: Optional[float] = Field(None, ge=0, le=100, description="Formatting score")
     keywords: Optional[float] = Field(None, ge=0, le=100, description="Keywords score")
+    contact_info: Optional[float] = Field(None, ge=0, le=100, description="Contact info completeness score")
+    # Tech sales-specific categories (populated when using tech sales scoring)
+    achievements: Optional[float] = Field(None, ge=0, le=100, description="Achievements score (quota %, revenue, deals)")
+    certifications: Optional[float] = Field(None, ge=0, le=100, description="Certifications score (Salesforce, HubSpot, MEDDIC)")
+    career_progression: Optional[float] = Field(None, ge=0, le=100, description="Career progression score (SDR → AE → Senior)")
 
 
 class ExtractedResumeData(BaseModel):
