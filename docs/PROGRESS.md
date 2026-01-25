@@ -260,6 +260,8 @@
 | BF.10 | Fix 401 redirect loop | 🟢 | Completed Jan 25, 2026 - Avoid redirect loops on sign-in page |
 | BF.11 | Fix page reload loop (30-40 reloads) | 🟢 | Completed Jan 25, 2026 - Created AuthContext to block API calls until token ready |
 | BF.12 | Code review improvements | 🟢 | Completed Jan 25, 2026 - Added retry logic, error handling, removed dead import |
+| BF.13 | Add Sign Out/Refresh buttons to auth error banner | 🟢 | Completed Jan 25, 2026 - Actionable recovery options for users |
+| BF.14 | Fix JWKS client caching in backend | 🟢 | Completed Jan 25, 2026 - URL-keyed cache to avoid repeated JWKS fetches |
 
 ---
 
@@ -338,6 +340,22 @@
 ---
 
 ## Notes & Decisions
+
+### January 25, 2026 (Session 12 - Assessment & Implementation)
+- **Assessed Code Review Recommendations**
+- Evaluated 3 recommendations from previous code review session:
+  1. **Sign Out button in error banner** - ✅ NECESSARY
+     - User stuck with no action when auth fails
+     - Implemented: Added Refresh and Sign Out buttons
+  2. **Telemetry/logging for auth failures** - ❌ UNNECESSARY
+     - No monitoring infrastructure in place yet
+     - console.error/print sufficient for current stage
+  3. **Unused _jwks_client cache** - ✅ NECESSARY
+     - Cache existed but wasn't used
+     - Implemented: URL-keyed cache for JWKS clients
+- Files modified:
+  - frontend/src/components/auth/ProtectedRoute.tsx - Added action buttons to error banner
+  - backend/app/middleware/auth.py - Implemented proper JWKS client caching
 
 ### January 25, 2026 (Session 12 - Continued)
 - **Code Review Session**
