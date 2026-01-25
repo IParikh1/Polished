@@ -1,7 +1,7 @@
 import { FileText, Clock, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import type { Batch } from '../../api/batchClient'
 import clsx from 'clsx'
-import { formatDistanceToNow } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 
 interface BatchListProps {
   batches: Batch[]
@@ -55,7 +55,7 @@ export default function BatchList({ batches, selectedId, onSelect }: BatchListPr
                 {batch.total_resumes} resumes
               </div>
               <div className="text-xs text-gray-400 mt-1">
-                {formatDistanceToNow(new Date(batch.created_at), { addSuffix: true })}
+                {format(parseISO(batch.created_at), 'MMM d, yyyy')}
               </div>
             </div>
             {batch.status === 'completed' && (
