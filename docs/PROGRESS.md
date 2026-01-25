@@ -258,6 +258,8 @@
 | BF.8 | Fix Clerk auth token sync timing | 🟢 | Completed Jan 25, 2026 - Wait for Clerk to load before API calls |
 | BF.9 | Fix JWKS URL construction in backend | 🟢 | Completed Jan 25, 2026 - Extract issuer from JWT token |
 | BF.10 | Fix 401 redirect loop | 🟢 | Completed Jan 25, 2026 - Avoid redirect loops on sign-in page |
+| BF.11 | Fix page reload loop (30-40 reloads) | 🟢 | Completed Jan 25, 2026 - Created AuthContext to block API calls until token ready |
+| BF.12 | Code review improvements | 🟢 | Completed Jan 25, 2026 - Added retry logic, error handling, removed dead import |
 
 ---
 
@@ -337,6 +339,23 @@
 
 ## Notes & Decisions
 
+### January 25, 2026 (Session 12 - Continued)
+- **Code Review Session**
+- Conducted comprehensive code review of auth flow fixes using RALPH method
+- Review findings:
+  - Overall assessment: ✅ Code is functional and well-structured
+  - Security: No sensitive data exposure, proper token validation
+  - Core auth flow was correctly implemented
+- Issues found and fixed:
+  - Removed unused `httpx` import in auth.py (dead code)
+  - Added retry logic to AuthContext (3 retries with exponential backoff)
+  - Added `authError` state to prevent infinite loading on token fetch failure
+  - Added error banner in AuthGuard when auth fails (still renders app)
+- Files modified:
+  - backend/app/middleware/auth.py - Removed unused import
+  - frontend/src/contexts/AuthContext.tsx - Added retry logic and error state
+  - frontend/src/components/auth/ProtectedRoute.tsx - Added error banner display
+
 ### January 25, 2026 (Session 12)
 - **Clerk Auth Bug Fixes**
 - User completed Clerk account setup - auth working
@@ -347,11 +366,18 @@
   - Fix: Added `isLoaded` and `session` dependencies to useAuthSync hook
   - Root cause 3: 401 response was causing redirect loop
   - Fix: Avoid redirect when already on sign-in page, use replace() instead of href
+- Fixed page reload loop (30-40 reloads after login):
+  - Root cause: API calls made before auth token was set
+  - Fix: Created AuthContext with `isAuthReady` state
+  - Fix: Added AuthGuard in ProtectedRoute to block rendering until token ready
+  - Fix: Removed 401 redirect from API interceptor
 - Files modified:
   - backend/app/middleware/auth.py - Fixed JWKS URL extraction
+  - frontend/src/contexts/AuthContext.tsx - New file for auth state management
   - frontend/src/hooks/useAuthSync.ts - Added proper Clerk loading checks
-  - frontend/src/api/batchClient.ts - Fixed 401 redirect handling
+  - frontend/src/api/batchClient.ts - Fixed 401 redirect handling, removed redirect
   - frontend/src/App.tsx - Lazy load auth pages
+  - frontend/src/components/auth/ProtectedRoute.tsx - Added AuthProvider and AuthGuard
   - frontend/src/components/auth/SignInPage.tsx - Redirect when Clerk not configured
   - frontend/src/components/auth/SignUpPage.tsx - Redirect when Clerk not configured
 
