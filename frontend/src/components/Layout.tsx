@@ -3,7 +3,6 @@ import { FileText, MessageSquare, BarChart3, Settings, Menu, X, Sparkles, HelpCi
 import { useState } from 'react'
 import { UserButton } from '@clerk/clerk-react'
 import clsx from 'clsx'
-import { useAuthSync } from '../hooks/useAuthSync'
 import { useSubscription, useCreatePortal } from '../hooks/useSubscription'
 
 // Check if Clerk is configured
@@ -22,9 +21,6 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-
-  // Sync Clerk auth token with API client
-  useAuthSync()
 
   // Get subscription status
   const { data: subscription, isLoading: subLoading } = useSubscription()
