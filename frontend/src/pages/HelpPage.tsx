@@ -94,14 +94,14 @@ export default function HelpPage() {
           <Step
             number={2}
             title="Upload Resumes"
-            description="Drag and drop resume files (PDF, DOCX, DOC, TXT, RTF) into the upload area. Select a target sales role for optimized scoring."
+            description="Drag and drop resume files (PDF, DOCX, DOC, TXT, RTF) into the upload area. Select a target sales role for optimized scoring, or enable 'Per-file roles' to assign different roles to each resume individually."
             icon={Upload}
           />
           <div className="ml-14 border-l-2 border-gray-200 h-4" />
           <Step
             number={3}
-            title="Start Processing"
-            description="Click 'Start Processing' to analyze and score all resumes. Processing extracts skills, experience, and calculates match scores."
+            title="Process or View Rankings"
+            description="Click 'Start Processing' to run AI analysis on all resumes, or click 'View Rankings' to see basic scoring immediately without AI processing. You can always process later."
             icon={Play}
           />
           <div className="ml-14 border-l-2 border-gray-200 h-4" />
@@ -115,7 +115,7 @@ export default function HelpPage() {
           <Step
             number={5}
             title="Export Results"
-            description="Export your rankings to CSV or JSON format. Download individual resumes or batch export all results."
+            description="Export your rankings to CSV or JSON format. Choose which data to include: scores, extracted data, and JD match results. You can also reopen completed batches to add more resumes."
             icon={Download}
           />
         </div>
@@ -213,49 +213,139 @@ export default function HelpPage() {
         </div>
       </div>
 
+      {/* Advanced Features */}
+      <div className="card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Advanced Features</h2>
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-medium text-gray-900 flex items-center gap-2">
+              <ChevronRight className="w-4 h-4 text-primary-500" />
+              Per-File Role Assignment
+            </h3>
+            <p className="text-sm text-gray-600 mt-1 ml-6">
+              When uploading resumes, click "Per-file roles" to assign different target roles to each resume individually.
+              This is useful when processing candidates for multiple positions in one batch. Each resume will be scored
+              against its assigned role's criteria.
+            </p>
+          </div>
+          <div className="border-t border-gray-100 pt-4">
+            <h3 className="font-medium text-gray-900 flex items-center gap-2">
+              <ChevronRight className="w-4 h-4 text-primary-500" />
+              View Rankings Without Processing
+            </h3>
+            <p className="text-sm text-gray-600 mt-1 ml-6">
+              Click "View Rankings" to see basic scores immediately without running AI processing.
+              This gives you quick results based on keyword matching and formatting. You can always
+              run full AI processing later for deeper analysis.
+            </p>
+          </div>
+          <div className="border-t border-gray-100 pt-4">
+            <h3 className="font-medium text-gray-900 flex items-center gap-2">
+              <ChevronRight className="w-4 h-4 text-primary-500" />
+              Reopen Completed Batches
+            </h3>
+            <p className="text-sm text-gray-600 mt-1 ml-6">
+              Need to add more resumes after a batch is complete? Click "Reopen" to set the batch
+              back to pending status, then upload additional resumes. Process again when ready.
+            </p>
+          </div>
+          <div className="border-t border-gray-100 pt-4">
+            <h3 className="font-medium text-gray-900 flex items-center gap-2">
+              <ChevronRight className="w-4 h-4 text-primary-500" />
+              Export Options
+            </h3>
+            <p className="text-sm text-gray-600 mt-1 ml-6">
+              When exporting, choose exactly what data to include: scoring details (category breakdowns),
+              extracted data (contact info, skills, experience), and JD match results. Export to CSV for
+              spreadsheets or JSON for developers.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Scoring Breakdown */}
       <div className="card p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">How Scoring Works</h2>
         <p className="text-gray-600 mb-4">
-          Each resume is scored on a 0-100 scale based on multiple factors:
+          Each resume is scored on a 0-100 scale using our tech sales-optimized algorithm based on 2025-2026 recruiter priorities:
         </p>
         <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-600" />
+              <span className="font-medium text-gray-900">Achievements</span>
+              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">18%</span>
+            </div>
+            <span className="text-sm text-gray-600">Quota %, revenue $, deals closed, rankings</span>
+          </div>
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-success-500" />
               <span className="font-medium text-gray-900">Experience</span>
+              <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">20%</span>
             </div>
-            <span className="text-sm text-gray-600">Years and relevance of work history</span>
+            <span className="text-sm text-gray-600">Years and relevance of sales work history</span>
           </div>
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-success-500" />
               <span className="font-medium text-gray-900">Skills</span>
+              <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">20%</span>
             </div>
-            <span className="text-sm text-gray-600">Sales tools, CRMs, methodologies</span>
-          </div>
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-success-500" />
-              <span className="font-medium text-gray-900">Education</span>
-            </div>
-            <span className="text-sm text-gray-600">Degrees and certifications</span>
+            <span className="text-sm text-gray-600">CRMs, sales tools, methodologies (MEDDIC, etc.)</span>
           </div>
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-success-500" />
               <span className="font-medium text-gray-900">Keywords</span>
+              <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">10%</span>
             </div>
             <span className="text-sm text-gray-600">Industry terms and role-specific keywords</span>
           </div>
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-success-500" />
+              <span className="font-medium text-gray-900">Career Progression</span>
+              <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">9%</span>
+            </div>
+            <span className="text-sm text-gray-600">SDR → AE → Senior AE growth trajectory</span>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-success-500" />
+              <span className="font-medium text-gray-900">Certifications</span>
+              <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">8%</span>
+            </div>
+            <span className="text-sm text-gray-600">Salesforce, HubSpot, MEDDIC certifications</span>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-success-500" />
               <span className="font-medium text-gray-900">Formatting</span>
+              <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">8%</span>
             </div>
             <span className="text-sm text-gray-600">Structure, readability, and ATS compatibility</span>
           </div>
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-success-500" />
+              <span className="font-medium text-gray-900">Education</span>
+              <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">5%</span>
+            </div>
+            <span className="text-sm text-gray-600">Degrees (less weighted for sales roles)</span>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-success-500" />
+              <span className="font-medium text-gray-900">Contact Info</span>
+              <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">2%</span>
+            </div>
+            <span className="text-sm text-gray-600">Email, phone, LinkedIn presence</span>
+          </div>
         </div>
+        <p className="text-xs text-gray-500 mt-4">
+          Weights are optimized for tech sales recruiting based on research from Resume Worded, Enhancv, and industry benchmarks.
+        </p>
       </div>
 
       {/* Score Legend */}
