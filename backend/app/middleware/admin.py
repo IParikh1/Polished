@@ -40,14 +40,28 @@ async def get_current_admin(
     # Check if user is admin in database
     is_admin = db.is_user_admin(user.user_id)
 
-    # Also check if email is in admin list
-    if not is_admin and user.email:
-        is_admin = user.email.lower() in ADMIN_EMAILS
-        if is_admin:
+    if not is_admin:
+        # Get email - from token or from DynamoDB
+        email = user.email
+        print(f"[Admin Check] user_id={user.user_id}, token_email={user.email}")
+
+        if not email:
+            # Clerk tokens may not include email - look it up from DynamoDB
+            user_data = db.get_user(user.user_id)
+            if user_data:
+                email = user_data.get("email")
+                print(f"[Admin Check] Found email in DynamoDB: {email}")
+
+        # Check if email is in admin list
+        print(f"[Admin Check] Checking email={email} against ADMIN_EMAILS={ADMIN_EMAILS}")
+        if email and email.lower() in ADMIN_EMAILS:
+            is_admin = True
             # Auto-grant admin status in database
             db.set_user_admin(user.user_id, True)
+            print(f"[Admin Check] Granted admin to user {user.user_id}")
 
     if not is_admin:
+        print(f"[Admin Check] Access denied for user {user.user_id}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -64,8 +78,15 @@ def is_admin_user(user: AuthenticatedUser) -> bool:
     if db.is_user_admin(user.user_id):
         return True
 
+    # Get email - from token or from DynamoDB
+    email = user.email
+    if not email:
+        user_data = db.get_user(user.user_id)
+        if user_data:
+            email = user_data.get("email")
+
     # Check email list
-    if user.email and user.email.lower() in ADMIN_EMAILS:
+    if email and email.lower() in ADMIN_EMAILS:
         return True
 
     return False
