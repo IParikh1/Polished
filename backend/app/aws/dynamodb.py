@@ -603,6 +603,36 @@ class DynamoDBClient:
             print(f"Error getting user by Stripe customer: {e}")
             return None
 
+    def update_user(self, user_id: str, updates: Dict[str, Any]) -> bool:
+        """Update user fields."""
+        table = self.resource.Table(USERS_TABLE)
+
+        # Build update expression dynamically
+        update_parts = []
+        expr_values = {":updated": datetime.utcnow().isoformat()}
+
+        for key, value in updates.items():
+            if key != "user_id":  # Don't update the primary key
+                update_parts.append(f"{key} = :{key}")
+                expr_values[f":{key}"] = value
+
+        if not update_parts:
+            return True  # Nothing to update
+
+        update_parts.append("updated_at = :updated")
+        update_expr = "SET " + ", ".join(update_parts)
+
+        try:
+            table.update_item(
+                Key={"user_id": user_id},
+                UpdateExpression=update_expr,
+                ExpressionAttributeValues=expr_values
+            )
+            return True
+        except ClientError as e:
+            print(f"Error updating user: {e}")
+            return False
+
     def update_user_subscription(
         self,
         user_id: str,

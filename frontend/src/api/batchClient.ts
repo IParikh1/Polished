@@ -960,4 +960,25 @@ export async function getServiceCosts(): Promise<ServiceCosts> {
   return response.data
 }
 
+// ==================== User Self-Service ====================
+
+export interface CurrentUserResponse {
+  user_id: string
+  email: string | null
+  name: string | null
+  is_admin: boolean
+  subscription_tier: string
+  created: boolean
+}
+
+export async function getCurrentUser(): Promise<CurrentUserResponse> {
+  const response = await api.get<CurrentUserResponse>('/user/me')
+  return response.data
+}
+
+export async function syncUserInfo(): Promise<{ synced: boolean; updates: string[] }> {
+  const response = await api.post('/user/me/sync')
+  return response.data
+}
+
 export default api

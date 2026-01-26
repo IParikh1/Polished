@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { UserButton } from '@clerk/clerk-react'
 import clsx from 'clsx'
 import { useSubscription, useCreatePortal } from '../hooks/useSubscription'
-import { useAdminStats } from '../hooks/useAdmin'
+import { useCurrentUser } from '../hooks/useCurrentUser'
 
 // Check if Clerk is configured
 const isClerkConfigured = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.startsWith('pk_')
@@ -28,9 +28,9 @@ export default function Layout() {
   const createPortal = useCreatePortal()
   const isPro = subscription?.is_pro ?? false
 
-  // Check if user is admin (if the stats query succeeds, user is admin)
-  const { data: adminStats } = useAdminStats()
-  const isAdmin = !!adminStats
+  // Get current user info (creates user in DB if needed, checks admin status)
+  const { data: currentUser } = useCurrentUser()
+  const isAdmin = currentUser?.is_admin ?? false
 
   const handleManageSubscription = async () => {
     if (isPro && subscription?.manage_url) {

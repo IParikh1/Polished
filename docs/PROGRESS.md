@@ -290,6 +290,8 @@
 | BF.17 | Fix filename display in per-file role assignment | 🟢 | Completed Jan 26, 2026 - CSS Grid layout |
 | BF.18 | Fix misleading time display in batch list | 🟢 | Completed Jan 26, 2026 - Changed to date format |
 | BF.19 | Fix admin check when Clerk token lacks email | 🟢 | Completed Jan 26, 2026 - Added DynamoDB email lookup fallback |
+| BF.20 | Create /user/me endpoint for user self-service | 🟢 | Completed Jan 26, 2026 - Creates user in DB, returns admin status |
+| BF.21 | Fix admin dashboard visibility (complete solution) | 🟢 | Completed Jan 26, 2026 - useCurrentUser hook + Layout update |
 
 ---
 
@@ -386,13 +388,27 @@
 
 ### January 26, 2026 (Session 16 - Admin Dashboard & Analytics Improvements)
 
-**Bug Fix: Admin Dashboard Not Showing**
-- **Root cause:** Clerk JWT tokens may not include email claim
-- **Issue:** Admin check was failing because user.email was None from token
-- **Fix:** Added fallback in admin.py to look up email from DynamoDB if not in token
-- **Files modified:** backend/app/middleware/admin.py
-- **Commits:** 8451652 (Fix admin check when Clerk token lacks email claim)
-- **Note:** If admin still doesn't show, ensure user exists in polished-users DynamoDB table with email field
+**Bug Fix: Admin Dashboard Not Showing (Complete Solution)**
+- **Root cause:** Clerk JWT tokens may not include email claim AND user may not exist in DynamoDB
+- **Issue:** Admin check was failing because user.email was None and user didn't exist in polished-users table
+- **Solution implemented:**
+  1. Created `/user/me` endpoint that creates user in DynamoDB on first call
+  2. Created `useCurrentUser` hook to call /me on app load
+  3. Updated Layout.tsx to use useCurrentUser instead of useAdminStats for admin check
+  4. Added `update_user` method to dynamodb.py for updating user fields
+- **Files created:**
+  - backend/app/api/user_routes.py - New /user/me endpoint
+  - frontend/src/hooks/useCurrentUser.ts - Hook for current user
+- **Files modified:**
+  - backend/app/aws/dynamodb.py - Added update_user method
+  - backend/app/main.py - Registered user_routes
+  - frontend/src/api/batchClient.ts - Added getCurrentUser API
+  - frontend/src/components/Layout.tsx - Use useCurrentUser for admin check
+- **How it works now:**
+  1. User loads app → Layout calls useCurrentUser → /user/me endpoint
+  2. /user/me creates user in DynamoDB if not exists (with email from Clerk token)
+  3. /user/me checks if email is in ADMIN_EMAILS and grants admin if so
+  4. Frontend receives isAdmin=true → Admin link appears in sidebar
 
 **Feature 8: Admin Dashboard - COMPLETE**
 - Created comprehensive admin/developer dashboard for user and usage tracking
