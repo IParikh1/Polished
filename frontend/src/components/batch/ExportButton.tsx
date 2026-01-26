@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Download, FileJson, FileSpreadsheet, X, Loader2, CheckCircle2 } from 'lucide-react'
 import { useExportBatch } from '../../hooks/useRankings'
+import clsx from 'clsx'
 
 interface ExportButtonProps {
   batchId: string
+  hasJobDescription?: boolean
 }
 
-export default function ExportButton({ batchId }: ExportButtonProps) {
+export default function ExportButton({ batchId, hasJobDescription = false }: ExportButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [format, setFormat] = useState<'json' | 'csv'>('csv')
   const [includeScores, setIncludeScores] = useState(true)
@@ -135,17 +137,29 @@ export default function ExportButton({ batchId }: ExportButtonProps) {
                       </div>
                     </div>
                   </label>
-                  <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                  <label
+                    className={clsx(
+                      'flex items-center gap-3 p-3 rounded-lg border border-gray-200',
+                      hasJobDescription
+                        ? 'hover:bg-gray-50 cursor-pointer'
+                        : 'opacity-50 cursor-not-allowed bg-gray-50'
+                    )}
+                  >
                     <input
                       type="checkbox"
                       checked={includeJdMatch}
                       onChange={(e) => setIncludeJdMatch(e.target.checked)}
-                      className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                      disabled={!hasJobDescription}
+                      className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500 disabled:opacity-50"
                     />
                     <div>
-                      <div className="font-medium text-gray-900">JD Matching</div>
+                      <div className={clsx('font-medium', hasJobDescription ? 'text-gray-900' : 'text-gray-400')}>
+                        JD Matching
+                      </div>
                       <div className="text-sm text-gray-500">
-                        Match scores and skill gaps
+                        {hasJobDescription
+                          ? 'Match scores and skill gaps'
+                          : 'No job description provided for this batch'}
                       </div>
                     </div>
                   </label>

@@ -10,6 +10,7 @@ import RankingTable from '../components/batch/RankingTable'
 import ExportButton from '../components/batch/ExportButton'
 import JDInput from '../components/batch/JDInput'
 import BatchFilters from '../components/batch/BatchFilters'
+import BatchAnalytics from '../components/batch/BatchAnalytics'
 import clsx from 'clsx'
 
 export default function BatchDashboard() {
@@ -255,7 +256,10 @@ export default function BatchDashboard() {
                           )}
                         </button>
                         {selectedBatch.status === 'completed' && (
-                          <ExportButton batchId={batchId} />
+                          <ExportButton
+                            batchId={batchId}
+                            hasJobDescription={!!selectedBatch.job_description}
+                          />
                         )}
                       </>
                     )}
@@ -284,6 +288,11 @@ export default function BatchDashboard() {
               {/* Rankings */}
               {selectedBatch.status === 'completed' && (
                 <>
+                  {/* Batch Analytics */}
+                  {!loadingRankings && rankingsData?.resumes && rankingsData.resumes.length > 0 && (
+                    <BatchAnalytics resumes={rankingsData.resumes} />
+                  )}
+
                   <div className="card p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-900">Ranked Resumes</h3>
