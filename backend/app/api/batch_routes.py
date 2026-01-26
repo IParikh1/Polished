@@ -112,6 +112,14 @@ async def create_batch(
     cache = get_cache()
     cache.cache_batch(batch["batch_id"], batch)
 
+    # Record usage for admin tracking
+    try:
+        from ..aws.dynamodb import get_db
+        db = get_db()
+        db.record_usage(user.user_id, "batches_created", 1)
+    except Exception as e:
+        print(f"Error recording usage: {e}")
+
     return BatchResponse(
         batch_id=batch["batch_id"],
         name=batch["name"],
@@ -818,6 +826,14 @@ async def export_batch(
 
     if not export:
         raise HTTPException(status_code=500, detail="Failed to create export")
+
+    # Record usage for admin tracking
+    try:
+        from ..aws.dynamodb import get_db
+        db = get_db()
+        db.record_usage(user.user_id, "exports_count", 1)
+    except Exception as e:
+        print(f"Error recording export usage: {e}")
 
     return ExportResponse(
         export_id=export["export_id"],

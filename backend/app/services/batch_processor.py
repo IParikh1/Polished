@@ -341,6 +341,22 @@ class BatchProcessor:
             final_status = BatchStatus.COMPLETED if failed == 0 else BatchStatus.COMPLETED
             await self.store.update_batch_status(batch_id, final_status, processed + failed)
 
+            # Record usage for admin tracking
+            user_id = batch.get("user_id")
+            if user_id:
+                try:
+                    from ..aws.dynamodb import get_db
+                    db = get_db()
+                    db.record_usage(user_id, "resumes_processed", processed)
+                    # Record JD matches if enabled
+                    if PremiumFeature.JD_MATCHING.value in premium_features and job_description:
+                        db.record_usage(user_id, "jd_matches", processed)
+                    # Record deep analyses if enabled
+                    if PremiumFeature.DEEP_ANALYSIS.value in premium_features:
+                        db.record_usage(user_id, "deep_analyses", processed)
+                except Exception as e:
+                    print(f"Error recording usage: {e}")
+
             return {
                 "processed": processed,
                 "failed": failed,

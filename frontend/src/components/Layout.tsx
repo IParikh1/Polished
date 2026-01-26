@@ -1,9 +1,10 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { FileText, MessageSquare, BarChart3, Settings, Menu, X, Sparkles, HelpCircle, Crown, CreditCard, User } from 'lucide-react'
+import { FileText, MessageSquare, BarChart3, Settings, Menu, X, Sparkles, HelpCircle, Crown, CreditCard, User, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { UserButton } from '@clerk/clerk-react'
 import clsx from 'clsx'
 import { useSubscription, useCreatePortal } from '../hooks/useSubscription'
+import { useAdminStats } from '../hooks/useAdmin'
 
 // Check if Clerk is configured
 const isClerkConfigured = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.startsWith('pk_')
@@ -26,6 +27,10 @@ export default function Layout() {
   const { data: subscription, isLoading: subLoading } = useSubscription()
   const createPortal = useCreatePortal()
   const isPro = subscription?.is_pro ?? false
+
+  // Check if user is admin (if the stats query succeeds, user is admin)
+  const { data: adminStats } = useAdminStats()
+  const isAdmin = !!adminStats
 
   const handleManageSubscription = async () => {
     if (isPro && subscription?.manage_url) {
@@ -118,6 +123,21 @@ export default function Layout() {
                 </Link>
               )
             })}
+            {/* Admin link - only shown to admins */}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className={clsx(
+                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  location.pathname === '/admin'
+                    ? 'bg-purple-50 text-purple-700'
+                    : 'text-purple-600 hover:bg-purple-50'
+                )}
+              >
+                <Shield className="w-5 h-5" />
+                Admin
+              </Link>
+            )}
           </nav>
           <div className="p-4 border-t">
             {subLoading ? (

@@ -20,6 +20,7 @@ BATCHES_TABLE = "polished-batches"
 BATCH_RESUMES_TABLE = "polished-batch-resumes"
 PLACEMENTS_TABLE = "polished-placements"
 USERS_TABLE = "polished-users"
+USAGE_TABLE = "polished-usage"
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -660,6 +661,210 @@ class DynamoDBClient:
             "name": name or "",
             "subscription_tier": "free",
         })
+
+    # ==================== Admin Operations ====================
+
+    def set_user_admin(self, user_id: str, is_admin: bool) -> bool:
+        """Set or remove admin status for a user."""
+        table = self.resource.Table(USERS_TABLE)
+
+        try:
+            table.update_item(
+                Key={"user_id": user_id},
+                UpdateExpression="SET is_admin = :admin, updated_at = :updated",
+                ExpressionAttributeValues={
+                    ":admin": is_admin,
+                    ":updated": datetime.utcnow().isoformat()
+                }
+            )
+            return True
+        except ClientError as e:
+            print(f"Error updating user admin status: {e}")
+            return False
+
+    def is_user_admin(self, user_id: str) -> bool:
+        """Check if a user is an admin."""
+        user = self.get_user(user_id)
+        if user:
+            return user.get("is_admin", False)
+        return False
+
+    def list_all_users(
+        self,
+        limit: int = 100,
+        offset: int = 0
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """List all users (admin only). Returns (users, total_count)."""
+        table = self.resource.Table(USERS_TABLE)
+
+        try:
+            # Scan for all users
+            response = table.scan()
+            items = response.get("Items", [])
+
+            # Handle pagination for large tables
+            while "LastEvaluatedKey" in response:
+                response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
+                items.extend(response.get("Items", []))
+
+            total = len(items)
+
+            # Sort by created_at descending
+            items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+
+            # Apply pagination
+            paginated = items[offset:offset + limit]
+
+            return convert_decimals(paginated), total
+        except ClientError as e:
+            print(f"Error listing all users: {e}")
+            return [], 0
+
+    def get_admin_stats(self) -> Dict[str, Any]:
+        """Get aggregate stats for admin dashboard."""
+        users_table = self.resource.Table(USERS_TABLE)
+        batches_table = self.resource.Table(BATCHES_TABLE)
+        resumes_table = self.resource.Table(BATCH_RESUMES_TABLE)
+
+        stats = {
+            "total_users": 0,
+            "users_by_tier": {"free": 0, "pro": 0, "enterprise": 0},
+            "users_by_status": {},
+            "total_batches": 0,
+            "total_resumes": 0,
+            "total_revenue": 0.0,
+            "period": datetime.utcnow().strftime("%Y-%m"),
+        }
+
+        try:
+            # Scan users
+            response = users_table.scan()
+            users = response.get("Items", [])
+            while "LastEvaluatedKey" in response:
+                response = users_table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
+                users.extend(response.get("Items", []))
+
+            stats["total_users"] = len(users)
+            for user in users:
+                tier = user.get("subscription_tier", "free")
+                stats["users_by_tier"][tier] = stats["users_by_tier"].get(tier, 0) + 1
+
+                status = user.get("subscription_status")
+                if status:
+                    stats["users_by_status"][status] = stats["users_by_status"].get(status, 0) + 1
+
+            # Count batches
+            response = batches_table.scan(Select="COUNT")
+            stats["total_batches"] = response.get("Count", 0)
+
+            # Count resumes
+            response = resumes_table.scan(Select="COUNT")
+            stats["total_resumes"] = response.get("Count", 0)
+
+        except ClientError as e:
+            print(f"Error getting admin stats: {e}")
+
+        return stats
+
+    # ==================== Usage Tracking Operations ====================
+
+    def record_usage(
+        self,
+        user_id: str,
+        usage_type: str,
+        amount: int = 1
+    ) -> bool:
+        """
+        Record usage for a user. Creates monthly aggregates.
+
+        Args:
+            user_id: User ID
+            usage_type: One of: batches_created, resumes_processed, exports_count,
+                       jd_matches, resume_writes, deep_analyses
+            amount: Amount to increment
+        """
+        table = self.resource.Table(USAGE_TABLE)
+        period = datetime.utcnow().strftime("%Y-%m")
+
+        try:
+            # Use atomic counter with update
+            table.update_item(
+                Key={
+                    "user_id": user_id,
+                    "period": period,
+                },
+                UpdateExpression=f"SET {usage_type} = if_not_exists({usage_type}, :zero) + :amt, updated_at = :updated",
+                ExpressionAttributeValues={
+                    ":amt": amount,
+                    ":zero": 0,
+                    ":updated": datetime.utcnow().isoformat(),
+                }
+            )
+            return True
+        except ClientError as e:
+            print(f"Error recording usage: {e}")
+            return False
+
+    def get_user_usage(
+        self,
+        user_id: str,
+        period: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Get usage for a user for a specific period (default: current month)."""
+        table = self.resource.Table(USAGE_TABLE)
+        if not period:
+            period = datetime.utcnow().strftime("%Y-%m")
+
+        try:
+            response = table.get_item(
+                Key={
+                    "user_id": user_id,
+                    "period": period,
+                }
+            )
+            item = response.get("Item")
+            if item:
+                return convert_decimals(item)
+            # Return default empty usage
+            return {
+                "user_id": user_id,
+                "period": period,
+                "batches_created": 0,
+                "resumes_processed": 0,
+                "exports_count": 0,
+                "jd_matches": 0,
+                "resume_writes": 0,
+                "deep_analyses": 0,
+            }
+        except ClientError as e:
+            print(f"Error getting user usage: {e}")
+            return None
+
+    def get_all_usage_for_period(
+        self,
+        period: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get usage for all users for a period."""
+        table = self.resource.Table(USAGE_TABLE)
+        if not period:
+            period = datetime.utcnow().strftime("%Y-%m")
+
+        try:
+            response = table.query(
+                IndexName="period-index",
+                KeyConditionExpression=Key("period").eq(period)
+            )
+            return convert_decimals(response.get("Items", []))
+        except ClientError as e:
+            # If index doesn't exist, fall back to scan
+            try:
+                response = table.scan(
+                    FilterExpression=Attr("period").eq(period)
+                )
+                return convert_decimals(response.get("Items", []))
+            except ClientError as e2:
+                print(f"Error getting all usage: {e2}")
+                return []
 
 
 # Singleton instance

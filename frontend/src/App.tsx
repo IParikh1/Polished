@@ -9,6 +9,7 @@ import AnalyticsPage from './pages/AnalyticsPage'
 import SettingsPage from './pages/SettingsPage'
 import HelpPage from './pages/HelpPage'
 import PricingPage from './pages/PricingPage'
+import AdminPage from './pages/AdminPage'
 
 // Lazy load auth pages to avoid loading Clerk when not needed
 const SignInPage = lazy(() => import('./components/auth/SignInPage'))
@@ -50,6 +51,7 @@ function App() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="pricing" element={<PricingPage />} />
         <Route path="help" element={<HelpPage />} />
+        <Route path="admin" element={<AdminPage />} />
       </Route>
     </Routes>
   )

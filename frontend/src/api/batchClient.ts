@@ -839,4 +839,125 @@ export async function getPricingInfo(): Promise<PricingInfo> {
   return response.data
 }
 
+// ==================== Admin API ====================
+
+export interface UserUsage {
+  user_id: string
+  period: string
+  batches_created: number
+  resumes_processed: number
+  exports_count: number
+  jd_matches: number
+  resume_writes: number
+  deep_analyses: number
+  updated_at: string
+}
+
+export interface UserCost {
+  batches_cost: number
+  resumes_cost: number
+  exports_cost: number
+  jd_matches_cost: number
+  resume_writes_cost: number
+  deep_analyses_cost: number
+  total_cost: number
+}
+
+export interface AdminUser {
+  user_id: string
+  email: string
+  name?: string
+  subscription_tier: SubscriptionTier
+  subscription_status?: SubscriptionStatus
+  is_admin: boolean
+  stripe_customer_id?: string
+  created_at: string
+  updated_at: string
+  usage?: UserUsage
+  cost?: UserCost
+}
+
+export interface AdminUserListResponse {
+  users: AdminUser[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface AdminStatsResponse {
+  total_users: number
+  users_by_tier: Record<string, number>
+  users_by_status: Record<string, number>
+  total_batches: number
+  total_resumes: number
+  total_revenue: number
+  period: string
+}
+
+export interface ServiceCosts {
+  costs_per_unit: Record<string, number>
+  description: Record<string, string>
+}
+
+export async function getAdminStats(): Promise<AdminStatsResponse> {
+  const response = await api.get<AdminStatsResponse>('/admin/stats')
+  return response.data
+}
+
+export async function getAdminUsers(
+  limit = 50,
+  offset = 0,
+  tier?: string
+): Promise<AdminUserListResponse> {
+  const response = await api.get<AdminUserListResponse>('/admin/users', {
+    params: { limit, offset, tier },
+  })
+  return response.data
+}
+
+export async function getAdminUser(userId: string): Promise<AdminUser> {
+  const response = await api.get<AdminUser>(`/admin/users/${userId}`)
+  return response.data
+}
+
+export async function setUserAdminStatus(
+  userId: string,
+  isAdmin: boolean
+): Promise<{ message: string; user_id: string; is_admin: boolean }> {
+  const response = await api.post(`/admin/users/${userId}/admin`, null, {
+    params: { is_admin: isAdmin },
+  })
+  return response.data
+}
+
+export async function setUserTier(
+  userId: string,
+  tier: string
+): Promise<{ message: string; user_id: string; tier: string }> {
+  const response = await api.post(`/admin/users/${userId}/tier`, null, {
+    params: { tier },
+  })
+  return response.data
+}
+
+export async function getAdminUsage(
+  period?: string
+): Promise<{
+  period: string
+  user_count: number
+  usage_by_user: UserUsage[]
+  totals: Record<string, number>
+  total_cost: UserCost
+}> {
+  const response = await api.get('/admin/usage', {
+    params: { period },
+  })
+  return response.data
+}
+
+export async function getServiceCosts(): Promise<ServiceCosts> {
+  const response = await api.get<ServiceCosts>('/admin/service-costs')
+  return response.data
+}
+
 export default api

@@ -75,8 +75,69 @@ class UserProfile(BaseModel):
     stripe_customer_id: Optional[str] = None
     stripe_subscription_id: Optional[str] = None
     subscription_status: Optional[SubscriptionStatus] = None
+    is_admin: bool = False
     created_at: str
     updated_at: str
+
+
+# ==================== Admin Models ====================
+
+class UserUsage(BaseModel):
+    """Usage metrics for a user."""
+    user_id: str
+    period: str  # Format: YYYY-MM
+    batches_created: int = 0
+    resumes_processed: int = 0
+    exports_count: int = 0
+    jd_matches: int = 0
+    resume_writes: int = 0
+    deep_analyses: int = 0
+    updated_at: str
+
+
+class UserCost(BaseModel):
+    """Calculated cost for a user's usage."""
+    batches_cost: float = 0.0
+    resumes_cost: float = 0.0
+    exports_cost: float = 0.0
+    jd_matches_cost: float = 0.0
+    resume_writes_cost: float = 0.0
+    deep_analyses_cost: float = 0.0
+    total_cost: float = 0.0
+
+
+class AdminUserResponse(BaseModel):
+    """User data for admin dashboard."""
+    user_id: str
+    email: str
+    name: Optional[str] = None
+    subscription_tier: SubscriptionTier
+    subscription_status: Optional[SubscriptionStatus] = None
+    is_admin: bool = False
+    stripe_customer_id: Optional[str] = None
+    created_at: str
+    updated_at: str
+    usage: Optional[UserUsage] = None
+    cost: Optional[UserCost] = None
+
+
+class AdminStatsResponse(BaseModel):
+    """Aggregate statistics for admin dashboard."""
+    total_users: int
+    users_by_tier: dict  # {"free": 10, "pro": 5, "enterprise": 1}
+    users_by_status: dict  # {"active": 10, "canceled": 2, ...}
+    total_batches: int
+    total_resumes: int
+    total_revenue: float
+    period: str  # Current month YYYY-MM
+
+
+class AdminUserListResponse(BaseModel):
+    """Response for admin user list."""
+    users: List[AdminUserResponse]
+    total: int
+    limit: int
+    offset: int
 
 
 class SubscriptionResponse(BaseModel):

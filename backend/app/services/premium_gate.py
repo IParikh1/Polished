@@ -156,6 +156,11 @@ class PremiumGate:
             db = get_db()
             user = db.get_user(user_id)
             if user:
+                # Admin users get enterprise tier
+                if user.get("is_admin", False):
+                    self._user_tiers[user_id] = PremiumTier.ENTERPRISE
+                    return PremiumTier.ENTERPRISE
+
                 tier_str = user.get("subscription_tier", "free")
                 tier = PremiumTier(tier_str)
                 self._user_tiers[user_id] = tier  # Cache it
@@ -164,6 +169,15 @@ class PremiumGate:
             print(f"Error fetching user tier: {e}")
 
         return PremiumTier.FREE
+
+    def is_admin(self, user_id: str) -> bool:
+        """Check if user is an admin."""
+        try:
+            from ..aws.dynamodb import get_db
+            db = get_db()
+            return db.is_user_admin(user_id)
+        except Exception:
+            return False
 
     def has_feature(self, user_id: str, feature: PremiumFeature) -> bool:
         """Check if user has access to a feature."""
