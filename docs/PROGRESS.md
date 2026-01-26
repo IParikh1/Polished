@@ -289,6 +289,7 @@
 | BF.16 | Fix target_role storage in DynamoDB | 🟢 | Completed Jan 26, 2026 - Added to add_resume_to_batch item |
 | BF.17 | Fix filename display in per-file role assignment | 🟢 | Completed Jan 26, 2026 - CSS Grid layout |
 | BF.18 | Fix misleading time display in batch list | 🟢 | Completed Jan 26, 2026 - Changed to date format |
+| BF.19 | Fix admin check when Clerk token lacks email | 🟢 | Completed Jan 26, 2026 - Added DynamoDB email lookup fallback |
 
 ---
 
@@ -384,6 +385,14 @@
 ## Notes & Decisions
 
 ### January 26, 2026 (Session 16 - Admin Dashboard & Analytics Improvements)
+
+**Bug Fix: Admin Dashboard Not Showing**
+- **Root cause:** Clerk JWT tokens may not include email claim
+- **Issue:** Admin check was failing because user.email was None from token
+- **Fix:** Added fallback in admin.py to look up email from DynamoDB if not in token
+- **Files modified:** backend/app/middleware/admin.py
+- **Commits:** 8451652 (Fix admin check when Clerk token lacks email claim)
+- **Note:** If admin still doesn't show, ensure user exists in polished-users DynamoDB table with email field
 
 **Feature 8: Admin Dashboard - COMPLETE**
 - Created comprehensive admin/developer dashboard for user and usage tracking
