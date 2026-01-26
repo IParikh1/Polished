@@ -292,6 +292,7 @@
 | BF.19 | Fix admin check when Clerk token lacks email | 🟢 | Completed Jan 26, 2026 - Added DynamoDB email lookup fallback |
 | BF.20 | Create /user/me endpoint for user self-service | 🟢 | Completed Jan 26, 2026 - Creates user in DB, returns admin status |
 | BF.21 | Fix admin dashboard visibility (complete solution) | 🟢 | Completed Jan 26, 2026 - useCurrentUser hook + Layout update |
+| BF.22 | Fix email not passed from Clerk to backend | 🟢 | Completed Jan 26, 2026 - Use Clerk useUser() to get email, pass to /me |
 
 ---
 
@@ -409,6 +410,16 @@
   2. /user/me creates user in DynamoDB if not exists (with email from Clerk token)
   3. /user/me checks if email is in ADMIN_EMAILS and grants admin if so
   4. Frontend receives isAdmin=true → Admin link appears in sidebar
+
+**Bug Fix: Email not passed from Clerk JWT**
+- **Root cause:** Clerk JWT tokens do NOT include email by default (security/privacy)
+- **Apple Sign-On:** Apple also hides email with "Hide My Email" feature
+- **Solution:** Use Clerk's `useUser()` hook on frontend to get email, pass as query param to /user/me
+- **Files modified:**
+  - frontend/src/hooks/useCurrentUser.ts - Get email from useUser(), pass to API
+  - frontend/src/api/batchClient.ts - getCurrentUser accepts email/name params
+  - backend/app/api/user_routes.py - Accept email/name query params, prefer over JWT
+- **Note:** To include email in JWT (alternative): Clerk Dashboard → JWT Templates → Add custom claim (requires Clerk Pro)
 
 **Feature 8: Admin Dashboard - COMPLETE**
 - Created comprehensive admin/developer dashboard for user and usage tracking

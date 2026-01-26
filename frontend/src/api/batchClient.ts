@@ -971,8 +971,10 @@ export interface CurrentUserResponse {
   created: boolean
 }
 
-export async function getCurrentUser(): Promise<CurrentUserResponse> {
-  const response = await api.get<CurrentUserResponse>('/user/me')
+export async function getCurrentUser(email?: string, name?: string): Promise<CurrentUserResponse> {
+  const response = await api.get<CurrentUserResponse>('/user/me', {
+    params: { email, name },
+  })
   return response.data
 }
 
