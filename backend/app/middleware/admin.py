@@ -12,7 +12,11 @@ from ..aws.dynamodb import get_db
 import os
 
 # Admin emails that should automatically have admin access
-ADMIN_EMAILS = set(
+# Hardcoded admin emails (always have access)
+_HARDCODED_ADMINS = {"ishanparikh@me.com"}
+
+# Combine with environment variable
+ADMIN_EMAILS = _HARDCODED_ADMINS | set(
     email.strip().lower()
     for email in os.getenv("ADMIN_EMAILS", "").split(",")
     if email.strip()
