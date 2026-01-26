@@ -1,7 +1,7 @@
 # Polished Tech Sales Features - Progress Tracker
 
-**Last Updated:** January 25, 2026 (Session 15 - Export Feature Fix)
-**Overall Status:** 🟡 In Progress - Auth Complete, Paywall Pending, Scoring Enhanced
+**Last Updated:** January 26, 2026 (Session 16 - Admin Dashboard & Analytics)
+**Overall Status:** 🟡 In Progress - Auth Complete, Admin Dashboard Complete, Paywall Pending Configuration, Scoring Enhanced
 
 ---
 
@@ -15,10 +15,11 @@
 | Feature 3: Metrics Extraction | 🟢 Complete | 7/7 tasks | Day 21 |
 | Feature 4: Resume Writing & Export | 🟢 Complete | 10/10 tasks | Day 21 |
 | Prompt Engineering | 🟢 Complete | 8/8 tasks | Day 10 |
-| Bug Fixes & Enhancements | 🟢 Complete | 7/7 tasks | Ongoing |
+| Bug Fixes & Enhancements | 🟢 Complete | 18/18 tasks | Ongoing |
 | **Feature 5: Authentication (Clerk)** | 🟢 Complete | 13/13 tasks | Day 25 |
 | **Feature 6: Data Isolation** | 🟢 Complete | 9/9 tasks | Day 26 |
 | **Feature 7: Subscription Paywall (Stripe)** | 🟢 Complete | 17/17 tasks | Day 28 |
+| **Feature 8: Admin Dashboard** | 🟢 Complete | 8/8 tasks | Day 30 |
 
 **Legend:** 🔴 Not Started | 🟡 In Progress | 🟢 Complete | ⏸️ Blocked
 
@@ -241,6 +242,28 @@
 | Jan 23, 2026 | BF.5 | Real-time resume count sync after uploads |
 | Jan 23, 2026 | BF.6 | Manual batch close feature - Backend API |
 | Jan 23, 2026 | BF.7 | Manual batch close feature - Frontend UI |
+| Jan 26, 2026 | SC.1 | Redesign scoring system for tech sales resumes |
+| Jan 26, 2026 | SC.2 | Add AI skills scoring (+10 bonus for AI/automation) |
+| Jan 26, 2026 | SC.3 | Fix career progression title matching with word boundaries |
+| Jan 26, 2026 | SC.4 | Add weight validation to ScoringWeights dataclasses |
+| Jan 26, 2026 | PF.1 | Add per-file role selection during batch upload |
+| Jan 26, 2026 | PF.2 | Add Target Role column to RankingTable |
+| Jan 26, 2026 | PF.3 | Add role_mapping JSON parameter to upload-multiple endpoint |
+| Jan 26, 2026 | BF.15 | Fix target_role not displaying in Rankings table |
+| Jan 26, 2026 | BF.16 | Fix target_role storage in DynamoDB |
+| Jan 26, 2026 | BF.17 | Fix filename display in per-file role assignment UI |
+| Jan 26, 2026 | BF.18 | Fix misleading time display in batch list |
+| Jan 26, 2026 | DOC.1 | Update Help documentation with new features |
+| Jan 26, 2026 | AN.1 | Remove dummy data from Analytics page |
+| Jan 26, 2026 | AN.2 | Add BatchAnalytics component with score insights |
+| Jan 26, 2026 | AD.1 | Add is_admin flag to user schema |
+| Jan 26, 2026 | AD.2 | Create polished-usage DynamoDB table operations |
+| Jan 26, 2026 | AD.3 | Create admin middleware |
+| Jan 26, 2026 | AD.4 | Create admin API routes |
+| Jan 26, 2026 | AD.5 | Add usage tracking to batch operations |
+| Jan 26, 2026 | AD.6 | Create AdminPage frontend |
+| Jan 26, 2026 | AD.7 | Create useAdmin hooks |
+| Jan 26, 2026 | AD.8 | Add admin link to sidebar |
 
 ---
 
@@ -262,6 +285,10 @@
 | BF.12 | Code review improvements | 🟢 | Completed Jan 25, 2026 - Added retry logic, error handling, removed dead import |
 | BF.13 | Add Sign Out/Refresh buttons to auth error banner | 🟢 | Completed Jan 25, 2026 - Actionable recovery options for users |
 | BF.14 | Fix JWKS client caching in backend | 🟢 | Completed Jan 25, 2026 - URL-keyed cache to avoid repeated JWKS fetches |
+| BF.15 | Fix target_role not displaying in Rankings table | 🟢 | Completed Jan 26, 2026 - Added to ResumeResponse schema |
+| BF.16 | Fix target_role storage in DynamoDB | 🟢 | Completed Jan 26, 2026 - Added to add_resume_to_batch item |
+| BF.17 | Fix filename display in per-file role assignment | 🟢 | Completed Jan 26, 2026 - CSS Grid layout |
+| BF.18 | Fix misleading time display in batch list | 🟢 | Completed Jan 26, 2026 - Changed to date format |
 
 ---
 
@@ -339,7 +366,78 @@
 
 ---
 
+## Feature 8: Admin Dashboard
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| AD.1 | Add is_admin flag to user schema | 🟢 | Completed Jan 26, 2026 |
+| AD.2 | Create polished-usage DynamoDB table operations | 🟢 | Completed Jan 26, 2026 |
+| AD.3 | Create admin middleware | 🟢 | Completed Jan 26, 2026 - middleware/admin.py |
+| AD.4 | Create admin API routes | 🟢 | Completed Jan 26, 2026 - api/admin_routes.py |
+| AD.5 | Add usage tracking to batch operations | 🟢 | Completed Jan 26, 2026 |
+| AD.6 | Create AdminPage frontend | 🟢 | Completed Jan 26, 2026 - Full dashboard with stats |
+| AD.7 | Create useAdmin hooks | 🟢 | Completed Jan 26, 2026 |
+| AD.8 | Add admin link to sidebar | 🟢 | Completed Jan 26, 2026 - Only visible to admins |
+
+---
+
 ## Notes & Decisions
+
+### January 26, 2026 (Session 16 - Admin Dashboard & Analytics Improvements)
+
+**Feature 8: Admin Dashboard - COMPLETE**
+- Created comprehensive admin/developer dashboard for user and usage tracking
+- Backend:
+  - Added `is_admin` flag to user schema in DynamoDB
+  - Added `polished-usage` table operations for persistent usage tracking
+  - Created admin middleware (`middleware/admin.py`) for admin-only access
+  - Created admin API routes (`api/admin_routes.py`):
+    - GET /admin/stats - Aggregate statistics
+    - GET /admin/users - List all users with usage/cost data
+    - GET /admin/users/{id} - User details
+    - POST /admin/users/{id}/admin - Grant/revoke admin
+    - POST /admin/users/{id}/tier - Set subscription tier
+    - GET /admin/usage - Usage data for all users
+    - GET /admin/service-costs - Service cost configuration
+  - Added usage tracking to batch creation, processing, and exports
+  - Admin users automatically get enterprise tier (all features)
+- Frontend:
+  - Created AdminPage with overview stats, user distribution, user list with tier/status/usage/cost
+  - Expandable rows with detailed usage/cost breakdown
+  - Ability to change user tier and admin status
+  - Added admin hooks (`useAdmin.ts`)
+  - Admin link in sidebar (only visible to admins)
+- Configuration: `ADMIN_EMAILS` env var for auto-admin access
+- Added ishanparikh@me.com to hardcoded admin list
+
+**Batch-Level Analytics Component**
+- Created BatchAnalytics component showing:
+  - Score distribution (80-100, 60-79, 40-59, 0-39)
+  - Average score and top 5 candidates
+  - Substance vs Presentation breakdown
+  - "Why Scores Are Low" insight (writing vs skill issues)
+  - Category-by-category breakdown
+- Integrated into BatchDashboard for completed batches
+
+**Analytics Page Improvements**
+- Completely rewrote AnalyticsPage to show only real data
+- Removed fake/simulated data (hardcoded percentages, fake names, etc.)
+- Now shows real metrics: total batches, resumes, completion rate
+- Added batch status breakdown (completed/processing/pending/failed)
+- Added manual refresh button and proper loading states
+
+**Help Documentation Update**
+- Added documentation for per-file role assignment, View Rankings, Reopen batches
+- Updated scoring section with detailed breakdown (new categories and weights)
+
+**UI/UX Fixes**
+- Fixed misleading time display in batch list (changed from "in about X hours" to "MMM d, yyyy" format)
+- Fixed filename display in per-file role assignment with CSS Grid layout
+
+**DynamoDB Schema Addition:**
+- New table: `polished-usage`
+  - Primary key: `user_id` (string)
+  - Sort key: `period` (string, format: YYYY-MM)
 
 ### January 25, 2026 (Session 15 - Export Feature Fix + Target Role Display Fix)
 - **Verified and documented batch export feature**
@@ -868,6 +966,17 @@
 17. [x] ~~Create Analytics dashboard page~~ (Completed Jan 22, 2026)
 18. [x] ~~Create Settings page with API key management~~ (Completed Jan 22, 2026)
 19. [x] ~~Add test files to git repository~~ (Completed Jan 22, 2026)
+20. [x] ~~Redesign scoring system for tech sales~~ (Completed Jan 26, 2026)
+21. [x] ~~Add per-file role selection~~ (Completed Jan 26, 2026)
+22. [x] ~~Create Admin Dashboard~~ (Completed Jan 26, 2026)
+23. [x] ~~Add batch-level analytics~~ (Completed Jan 26, 2026)
+24. [x] ~~Remove dummy data from Analytics page~~ (Completed Jan 26, 2026)
+25. [ ] Create Stripe account and configure products (S.1)
+26. [ ] Create polished-users DynamoDB table (S.2)
+27. [ ] Create polished-usage DynamoDB table
+28. [ ] Test Stripe checkout flow E2E (S.16)
+29. [ ] Test webhook handling (S.17)
+30. [ ] Agency pilot testing
 
 ---
 

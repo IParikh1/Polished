@@ -1,10 +1,10 @@
 # Product Requirements Document: Tech Sales Resume Optimization
 
 **Product:** Polished - AI Resume Tool for Tech Sales Professionals
-**Version:** 2.0
-**Date:** January 2025
+**Version:** 2.1
+**Date:** January 2025 (Updated January 26, 2026)
 **Author:** Product Team
-**Status:** In Development
+**Status:** Complete - All Features Implemented
 
 ---
 
@@ -363,6 +363,49 @@ Proactively identify missing sales metrics and prompt user to provide them, then
 | 3.7 | Test metrics flow | 1 hour | All above |
 
 **Total Estimated Time:** ~6.5 hours
+
+---
+
+## Feature 4: Tech Sales Scoring System (IMPLEMENTED)
+
+### Overview
+Redesigned scoring system specifically optimized for tech sales resumes, based on 2025-2026 recruiter research from Resume Worded, Enhancv, Highspot, and Everstage.
+
+### Scoring Categories
+
+| Category | Weight | Description |
+|----------|--------|-------------|
+| Achievements | 18% | Quota %, revenue $, deals closed, rankings, activity metrics |
+| Experience | 20% | Years of relevant experience |
+| Skills | 20% | Tech sales tools and methodologies |
+| Keywords | 10% | Role-specific keywords |
+| Career Progression | 9% | SDR → AE → Senior AE trajectory |
+| Certifications | 8% | Salesforce, HubSpot, MEDDIC, Sandler |
+| Formatting | 8% | ATS-friendly formatting |
+| Education | 5% | Less weight for sales roles |
+| Contact Info | 2% | Complete contact information |
+
+### Tech Sales Skills Categories
+
+| Category | Tools/Skills |
+|----------|--------------|
+| CRM | Salesforce, HubSpot, Dynamics 365, Pipedrive |
+| Engagement | Outreach, SalesLoft, Gong, Groove |
+| Intelligence | Gong, Chorus, Clari, 6sense, Demandbase |
+| Prospecting | ZoomInfo, LinkedIn Sales Navigator, Clay, Apollo |
+| AI/Automation | ChatGPT, Claude, AI tools, Zapier, predictive analytics |
+| Methodologies | MEDDIC, BANT, Challenger, SPIN, Sandler, Solution Selling |
+
+### Progressive Scoring
+- Smooth curves instead of hard thresholds
+- +10 bonus points for AI/automation skills
+- Word boundary matching for job titles (prevents false positives)
+- Weight validation in scoring dataclasses
+
+### Per-File Role Selection (IMPLEMENTED)
+- Users can assign different target roles to individual files in a single upload
+- `role_mapping` JSON parameter in upload-multiple endpoint
+- Target Role displayed in Rankings table with SalesRoleBadge component
 
 ---
 

@@ -1,10 +1,10 @@
 # Product Requirements Document: Authentication & Paywall System
 
 **Product:** Polished - AI Resume Tool for Tech Sales Professionals
-**Version:** 3.0
-**Date:** January 2026
+**Version:** 3.1
+**Date:** January 2026 (Updated January 26, 2026)
 **Author:** DevTeam Orchestrator
-**Status:** In Development
+**Status:** Implementation Complete - Pending Configuration
 
 ---
 
@@ -304,6 +304,74 @@ VITE_STRIPE_PUBLISHABLE_KEY=pk_live_xxx
 | S.17 | Test webhook handling | 30 min | S.5 |
 
 **Total: ~8.5 hours**
+
+---
+
+## Feature 4: Admin Dashboard (IMPLEMENTED)
+
+### Overview
+Developer/admin dashboard for monitoring users, usage, and revenue. Only accessible to admin users.
+
+### Admin Access
+Admins are determined by:
+1. `ADMIN_EMAILS` environment variable (comma-separated list)
+2. `is_admin: true` flag in polished-users DynamoDB table
+
+Admin users automatically get:
+- Enterprise tier (all features unlocked)
+- Access to /admin route
+
+### Admin Features
+
+| Feature | Description |
+|---------|-------------|
+| Overview Stats | Total users, batches, resumes, estimated revenue |
+| Users by Tier | Distribution chart (Free/Pro/Enterprise) |
+| User List | All users with tier, status, usage, cost data |
+| User Details | Expandable rows with detailed breakdown |
+| Tier Management | Change user subscription tier |
+| Admin Management | Grant/revoke admin status |
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /admin/stats | Aggregate statistics |
+| GET | /admin/users | List all users with usage/cost |
+| GET | /admin/users/{id} | User details |
+| POST | /admin/users/{id}/admin | Grant/revoke admin |
+| POST | /admin/users/{id}/tier | Set subscription tier |
+| GET | /admin/usage | Usage data for all users |
+| GET | /admin/service-costs | Service cost configuration |
+
+### New DynamoDB Table
+
+**Table: polished-usage**
+```
+{
+  "user_id": "user_clerk_xxx",      // PK
+  "period": "2026-01",              // SK (YYYY-MM format)
+  "batches_created": 5,
+  "resumes_processed": 150,
+  "exports_generated": 20,
+  "jd_matches_run": 30,
+  "deep_analyses_run": 10,
+  "estimated_cost": 12.50
+}
+```
+
+### Environment Variables
+
+**Backend (Railway):**
+```
+ADMIN_EMAILS=admin@example.com,owner@company.com
+```
+
+### Files Created
+- `backend/app/middleware/admin.py` - Admin-only access middleware
+- `backend/app/api/admin_routes.py` - Admin API endpoints
+- `frontend/src/pages/AdminPage.tsx` - Admin dashboard UI
+- `frontend/src/hooks/useAdmin.ts` - Admin API hooks
 
 ---
 
