@@ -235,10 +235,15 @@ async def set_user_admin_status(
             detail="Failed to update admin status"
         )
 
+    # If granting admin, also upgrade to enterprise tier
+    if is_admin:
+        db.update_user_subscription(user_id, "enterprise")
+
     return {
         "message": f"Admin status {'granted' if is_admin else 'revoked'} for user {user_id}",
         "user_id": user_id,
         "is_admin": is_admin,
+        "tier": "enterprise" if is_admin else user.get("subscription_tier", "free"),
     }
 
 

@@ -293,6 +293,8 @@
 | BF.20 | Create /user/me endpoint for user self-service | 🟢 | Completed Jan 26, 2026 - Creates user in DB, returns admin status |
 | BF.21 | Fix admin dashboard visibility (complete solution) | 🟢 | Completed Jan 26, 2026 - useCurrentUser hook + Layout update |
 | BF.22 | Fix email not passed from Clerk to backend | 🟢 | Completed Jan 26, 2026 - Use Clerk useUser() to get email, pass to /me |
+| BF.23 | Fix tier filter causing Access Denied in admin | 🟢 | Completed Jan 26, 2026 - Check for actual 403 errors, not missing data |
+| BF.24 | Auto-upgrade admins to Enterprise tier | 🟢 | Completed Jan 26, 2026 - /me and admin routes now set enterprise tier |
 
 ---
 

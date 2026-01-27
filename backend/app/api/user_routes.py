@@ -85,14 +85,24 @@ async def get_current_user_info(
     if not is_admin and final_email and final_email.lower() in ADMIN_EMAILS:
         is_admin = True
         db.set_user_admin(user.user_id, True)
-        print(f"[/me] Granted admin to user {user.user_id} based on email {final_email}")
+        # Also upgrade admin to enterprise tier
+        db.update_user_subscription(user.user_id, "enterprise")
+        existing_user["subscription_tier"] = "enterprise"
+        print(f"[/me] Granted admin to user {user.user_id} based on email {final_email}, upgraded to enterprise")
+
+    # Ensure admins always have enterprise tier
+    current_tier = existing_user.get("subscription_tier", "free")
+    if is_admin and current_tier != "enterprise":
+        db.update_user_subscription(user.user_id, "enterprise")
+        current_tier = "enterprise"
+        print(f"[/me] Upgraded admin {user.user_id} to enterprise tier")
 
     return UserMeResponse(
         user_id=user.user_id,
         email=final_email,
         name=existing_user.get("name") or user_name,
         is_admin=is_admin,
-        subscription_tier=existing_user.get("subscription_tier", "free"),
+        subscription_tier=current_tier,
         created=created,
     )
 

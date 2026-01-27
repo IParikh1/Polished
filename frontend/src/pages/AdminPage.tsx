@@ -304,8 +304,8 @@ export default function AdminPage() {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null)
   const [tierFilter, setTierFilter] = useState<string | undefined>(undefined)
 
-  const { data: stats, isLoading: loadingStats, refetch: refetchStats } = useAdminStats()
-  const { data: usersData, isLoading: loadingUsers, refetch: refetchUsers } = useAdminUsers(
+  const { data: stats, isLoading: loadingStats, error: statsError, refetch: refetchStats } = useAdminStats()
+  const { data: usersData, isLoading: loadingUsers, error: usersError, refetch: refetchUsers } = useAdminUsers(
     100,
     0,
     tierFilter
@@ -319,8 +319,14 @@ export default function AdminPage() {
   }
 
   // Check if user has admin access (403 error means no access)
-  const isUnauthorized =
-    (!loadingStats && !stats) || (!loadingUsers && !usersData)
+  // Only show Access Denied for actual 403 errors, not for empty results or loading states
+  const is403Error = (error: unknown): boolean => {
+    if (!error) return false
+    const axiosError = error as { response?: { status?: number } }
+    return axiosError?.response?.status === 403
+  }
+
+  const isUnauthorized = is403Error(statsError) || is403Error(usersError)
 
   if (isUnauthorized) {
     return (
