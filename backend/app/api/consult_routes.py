@@ -221,7 +221,7 @@ async def analyze_resume(
 
     resume_data = session.get("resume_data", {})
     extracted = resume_data.get("extracted_data", {})
-    target_role = session.get("target_role", "software engineer")
+    target_role = session.get("target_role") or "account_executive"
 
     # Generate analysis (rule-based for MVP, can be enhanced with LLM)
     strengths = _analyze_strengths(extracted)
@@ -399,19 +399,43 @@ async def rewrite_section(
 
     resume_data = session.get("resume_data", {})
     extracted = resume_data.get("extracted_data", {})
-    target_role = session.get("target_role", "software engineer")
+    target_role = session.get("target_role") or "account_executive"
 
     # Get original text
     original = _get_section_text(extracted, request.section)
 
-    # Generate rewrite
-    rewritten, changes = _rewrite_section(
-        original,
-        request.section,
-        target_role,
-        request.tone,
-        extracted,
-    )
+    # Prefer an LLM rewrite grounded in the full resume; fall back to rules
+    rewritten = None
+    changes: List[str] = []
+
+    from ..services.resume_writer import get_writer
+    writer = get_writer()
+    if writer.is_available():
+        store = get_store()
+        resume_text = await store.get_resume_text(
+            session["batch_id"], session["resume_id"]
+        )
+        context = f"Requested tone: {request.tone}."
+        if resume_text:
+            context += f"\n\nFull resume for grounding (do not invent facts):\n{resume_text[:6000]}"
+        result = await writer.rewrite_section(
+            section_name=request.section,
+            section_content=original,
+            target_role=target_role,
+            context=context,
+            job_description=session.get("job_description"),
+        )
+        rewritten = result.get("rewritten")
+        changes = result.get("changes", [])
+
+    if not rewritten:
+        rewritten, changes = _rewrite_section(
+            original,
+            request.section,
+            target_role,
+            request.tone,
+            extracted,
+        )
 
     return RewriteResponse(
         session_id=request.session_id,
@@ -446,16 +470,16 @@ def _rewrite_section(
     changes = []
 
     if section == "summary":
-        name = extracted.get("name", "Professional")
-        years = extracted.get("years_of_experience", 5)
-        skills = extracted.get("skills", ["software development"])[:3]
-        skill_text = ", ".join(skills)
+        years = extracted.get("years_of_experience") or None
+        skills = [s for s in extracted.get("skills", []) if s][:3]
+        role_label = target_role.replace("_", " ").title()
+        years_phrase = f"with {int(years)}+ years of experience" if years else "with proven experience"
+        skills_phrase = f" specializing in {', '.join(skills)}" if skills else ""
 
         rewritten = (
-            f"Results-driven {target_role} with {years}+ years of experience "
-            f"specializing in {skill_text}. Proven track record of delivering "
-            f"high-quality solutions and driving technical excellence. "
-            f"Passionate about innovation and continuous improvement."
+            f"Results-driven {role_label} {years_phrase}{skills_phrase}. "
+            f"Proven track record of exceeding targets and building strong "
+            f"client relationships that drive revenue growth."
         )
         changes = [
             "Added quantifiable experience",
@@ -542,12 +566,17 @@ async def consulting_chat(
     user_message = ChatMessage(role="user", content=request.message)
     session["messages"].append(user_message.model_dump())
 
-    # Generate response
-    response_content = _generate_chat_response(
+    # Generate response - Claude when available, canned guidance otherwise
+    response_content = await _generate_chat_response_llm(
         request.message,
-        session.get("resume_data", {}),
-        session.get("target_role"),
+        session,
     )
+    if not response_content:
+        response_content = _generate_chat_response(
+            request.message,
+            session.get("resume_data", {}),
+            session.get("target_role"),
+        )
 
     assistant_message = ChatMessage(role="assistant", content=response_content)
     session["messages"].append(assistant_message.model_dump())
@@ -562,6 +591,62 @@ async def consulting_chat(
         ],
         suggestions=suggestions,
     )
+
+
+async def _generate_chat_response_llm(message: str, session: Dict[str, Any]) -> Optional[str]:
+    """
+    Generate a consulting chat reply with Claude, grounded in the resume.
+    Returns None when the LLM is unavailable or errors (caller falls back).
+    """
+    from ..services.resume_writer import get_writer
+    writer = get_writer()
+    if not writer.is_available():
+        return None
+
+    try:
+        store = get_store()
+        resume_text = await store.get_resume_text(
+            session["batch_id"], session["resume_id"]
+        )
+        target_role = session.get("target_role") or "account_executive"
+        from ..services.resume_agent import ROLE_CONFIGS as SALES_ROLE_CONFIGS
+        domain = "tech-sales resume consultant" if target_role in SALES_ROLE_CONFIGS else "resume consultant"
+
+        system_prompt = (
+            f"You are an expert {domain} for the Polished platform. "
+            "You help candidates improve their resumes with specific, actionable advice. "
+            f"The candidate is targeting a {target_role.replace('_', ' ')} role. "
+            "Ground every answer in their actual resume below - never invent facts about them. "
+            "Be concise and concrete; prefer bullet points and rewritten examples over generalities.\n\n"
+            f"CANDIDATE'S RESUME:\n{(resume_text or '(resume text unavailable)')[:6000]}"
+        )
+
+        # Rebuild recent conversation for context (this turn's user message
+        # was already appended by the caller)
+        history = [
+            {"role": m["role"], "content": m["content"]}
+            for m in session.get("messages", [])[-10:]
+            if m.get("role") in ("user", "assistant") and m.get("content")
+        ]
+        if not history or history[-1]["role"] != "user":
+            history.append({"role": "user", "content": message})
+
+        import asyncio
+
+        def _call():
+            response = writer.client.messages.create(
+                model="claude-sonnet-5",
+                max_tokens=1024,
+                system=system_prompt,
+                messages=history,
+            )
+            return writer._extract_text(response).strip()
+
+        reply = await asyncio.to_thread(_call)
+        return reply or None
+    except Exception as e:
+        print(f"Consulting chat LLM failed: {e}")
+        return None
 
 
 def _generate_chat_response(message: str, resume_data: Dict, target_role: Optional[str]) -> str:

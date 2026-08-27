@@ -18,6 +18,12 @@ except ImportError:
 
 from .prompts.rewrite import get_rewrite_prompt
 from .prompts import get_role_prompt, BASE_TECH_SALES_PROMPT
+
+# System prompt for roles outside the tech-sales specialization
+GENERIC_RESUME_PROMPT = """You are an expert resume writer and career coach with 20 years of \
+experience across industries. You rewrite resume content to be specific, achievement-oriented, \
+and ATS-friendly. You never invent facts about the candidate - you reframe and strengthen what \
+is actually there, using metrics-first bullets and the terminology of the candidate's target role."""
 from .resume_agent import ROLE_CONFIGS, get_role_keywords
 
 
@@ -158,7 +164,7 @@ Please provide the complete rewritten resume followed by the metadata sections (
                 system=system_prompt,
             )
 
-            response_text = response.content[0].text
+            response_text = self._extract_text(response)
 
             # Parse the response
             return self._parse_llm_response(response_text, template)
@@ -169,6 +175,13 @@ Please provide the complete rewritten resume followed by the metadata sections (
             return await self._generate_rule_based(
                 resume_text, target_role, job_description, metrics, template, extracted_data
             )
+
+    @staticmethod
+    def _extract_text(response) -> str:
+        """Join the text blocks of a response (skips thinking blocks)."""
+        return "".join(
+            block.text for block in response.content if getattr(block, "type", "") == "text"
+        )
 
     async def rewrite_section(
         self,
@@ -198,8 +211,11 @@ Please provide the complete rewritten resume followed by the metadata sections (
 
         role_keywords = get_role_keywords(target_role)
         role_config = ROLE_CONFIGS.get(target_role)
+        is_sales_role = role_config is not None
+        role_display = role_config.display_name if role_config else target_role.replace("_", " ").title()
+        resume_kind = "tech sales resume" if is_sales_role else "resume"
 
-        prompt = f"""Rewrite this {section_name} section for a tech sales resume targeting a {role_config.display_name if role_config else target_role} role.
+        prompt = f"""Rewrite this {section_name} section for a {resume_kind} targeting a {role_display} role.
 
 ## Original {section_name.title()}:
 {section_content}
@@ -213,7 +229,7 @@ Please provide the complete rewritten resume followed by the metadata sections (
 ## Key Requirements:
 1. Maintain factual accuracy - never invent information
 2. Use action verbs and quantified achievements
-3. Incorporate relevant keywords: {', '.join(role_keywords[:10])}
+3. {f"Incorporate relevant keywords: {', '.join(role_keywords[:10])}" if role_keywords else f"Use terminology and keywords appropriate for a {role_display} role"}
 4. Follow the metrics-first bullet formula for experience
 5. Keep formatting clean and ATS-friendly
 
@@ -233,10 +249,10 @@ CHANGES MADE:
                 model="claude-sonnet-5",
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
-                system=BASE_TECH_SALES_PROMPT,
+                system=BASE_TECH_SALES_PROMPT if is_sales_role else GENERIC_RESUME_PROMPT,
             )
 
-            response_text = response.content[0].text
+            response_text = self._extract_text(response)
 
             # Parse response
             parts = response_text.split("CHANGES MADE:")
@@ -345,7 +361,7 @@ DYNAMIC:
                 system="You are an expert resume writer specializing in tech sales roles.",
             )
 
-            response_text = response.content[0].text
+            response_text = self._extract_text(response)
 
             # Parse variants
             summaries = {}
@@ -446,7 +462,7 @@ NEEDS_METRICS: [true/false - if placeholder added]
                 system="You are an expert resume writer. Enhance bullets while maintaining factual accuracy.",
             )
 
-            response_text = response.content[0].text
+            response_text = self._extract_text(response)
 
             # Parse enhanced bullets
             enhanced = []
@@ -635,9 +651,10 @@ Template: {template.value}
         years = data.get("years_of_experience", 0)
         skills = data.get("skills", [])[:5]
 
+        years_phrase = f"with {int(years)}+ years of experience" if years else "with proven experience"
         summary_text = (
             f"Results-driven {role_config.display_name if role_config else 'sales professional'} "
-            f"with {years}+ years of experience. "
+            f"{years_phrase}. "
             f"Expertise in {', '.join(skills[:3]) if skills else 'B2B sales'}. "
             f"Proven track record of exceeding targets and building strong client relationships."
         )
@@ -710,19 +727,20 @@ Template: {template.value}
         """Generate summary variants using rules."""
         role_name = role_config.display_name if role_config else target_role
         skill_str = ", ".join(skills[:3]) if skills else "sales and business development"
+        yrs = f"{int(years)}+ years" if years else None
 
         standard = (
-            f"Experienced {role_name.lower()} with {years}+ years in tech sales. "
+            f"Experienced {role_name.lower()} with {yrs + ' ' if yrs else 'a strong background '}in tech sales. "
             f"Skilled in {skill_str}. Committed to driving revenue growth and exceeding targets."
         )
 
         confident = (
-            f"Top-performing {role_name.lower()} with {years}+ years of consistently exceeding quota. "
+            f"Top-performing {role_name.lower()} with {yrs if yrs else 'a record'} of consistently exceeding quota. "
             f"Expert in {skill_str}, with a proven ability to close enterprise deals and drive significant revenue."
         )
 
         dynamic = (
-            f"High-energy {role_name.lower()} bringing {years}+ years of sales excellence. "
+            f"High-energy {role_name.lower()} bringing {yrs if yrs else 'a track record'} of sales excellence. "
             f"Known for {skill_str} and building lasting client relationships that fuel growth."
         )
 
