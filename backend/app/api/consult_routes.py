@@ -609,9 +609,11 @@ async def _generate_chat_response_llm(message: str, session: Dict[str, Any]) -> 
             session["batch_id"], session["resume_id"]
         )
         target_role = session.get("target_role") or "account_executive"
+        from ..services.resume_agent import ROLE_CONFIGS as SALES_ROLE_CONFIGS
+        domain = "tech-sales resume consultant" if target_role in SALES_ROLE_CONFIGS else "resume consultant"
 
         system_prompt = (
-            "You are an expert tech-sales resume consultant for the Polished platform. "
+            f"You are an expert {domain} for the Polished platform. "
             "You help candidates improve their resumes with specific, actionable advice. "
             f"The candidate is targeting a {target_role.replace('_', ' ')} role. "
             "Ground every answer in their actual resume below - never invent facts about them. "

@@ -18,6 +18,12 @@ except ImportError:
 
 from .prompts.rewrite import get_rewrite_prompt
 from .prompts import get_role_prompt, BASE_TECH_SALES_PROMPT
+
+# System prompt for roles outside the tech-sales specialization
+GENERIC_RESUME_PROMPT = """You are an expert resume writer and career coach with 20 years of \
+experience across industries. You rewrite resume content to be specific, achievement-oriented, \
+and ATS-friendly. You never invent facts about the candidate - you reframe and strengthen what \
+is actually there, using metrics-first bullets and the terminology of the candidate's target role."""
 from .resume_agent import ROLE_CONFIGS, get_role_keywords
 
 
@@ -205,8 +211,11 @@ Please provide the complete rewritten resume followed by the metadata sections (
 
         role_keywords = get_role_keywords(target_role)
         role_config = ROLE_CONFIGS.get(target_role)
+        is_sales_role = role_config is not None
+        role_display = role_config.display_name if role_config else target_role.replace("_", " ").title()
+        resume_kind = "tech sales resume" if is_sales_role else "resume"
 
-        prompt = f"""Rewrite this {section_name} section for a tech sales resume targeting a {role_config.display_name if role_config else target_role} role.
+        prompt = f"""Rewrite this {section_name} section for a {resume_kind} targeting a {role_display} role.
 
 ## Original {section_name.title()}:
 {section_content}
@@ -220,7 +229,7 @@ Please provide the complete rewritten resume followed by the metadata sections (
 ## Key Requirements:
 1. Maintain factual accuracy - never invent information
 2. Use action verbs and quantified achievements
-3. Incorporate relevant keywords: {', '.join(role_keywords[:10])}
+3. {f"Incorporate relevant keywords: {', '.join(role_keywords[:10])}" if role_keywords else f"Use terminology and keywords appropriate for a {role_display} role"}
 4. Follow the metrics-first bullet formula for experience
 5. Keep formatting clean and ATS-friendly
 
@@ -240,7 +249,7 @@ CHANGES MADE:
                 model="claude-sonnet-5",
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
-                system=BASE_TECH_SALES_PROMPT,
+                system=BASE_TECH_SALES_PROMPT if is_sales_role else GENERIC_RESUME_PROMPT,
             )
 
             response_text = self._extract_text(response)
