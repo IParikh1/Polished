@@ -34,10 +34,15 @@ cryptography>=41.0.0
 stripe>=7.0.0
 
 # Utilities
-python-dotenv>=1.0.0
+python-dotenv>=1.2.2
+
+# Security floors for transitive dependencies (pip-audit, Aug 2026)
+pillow>=12.3.0        # pulled in by reportlab/weasyprint - multiple CVEs below this
+requests>=2.33.0      # PYSEC-2026-2275
+click>=8.3.3          # PYSEC-2026-2132
 
 # Testing
-pytest>=7.4.0
+pytest>=9.0.3
 pytest-asyncio>=0.21.0
 httpx>=0.25.0
 

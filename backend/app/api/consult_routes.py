@@ -3,7 +3,7 @@ Consulting API Routes for Polished Resume Ranking System.
 Premium feature for AI-powered resume consulting and rewriting.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -11,6 +11,8 @@ import uuid
 
 from ..services.aws_store import get_store
 from ..services.premium_gate import get_premium_gate, PremiumFeature
+from ..middleware.auth import get_current_user, AuthenticatedUser
+from .batch_routes import verify_batch_ownership
 
 
 router = APIRouter(prefix="/consulting", tags=["Consulting"])
@@ -104,6 +106,15 @@ def get_session(session_id: str) -> Optional[Dict[str, Any]]:
     return _sessions.get(session_id)
 
 
+def get_owned_session(session_id: str, user_id: str) -> Dict[str, Any]:
+    """Get a consulting session, enforcing ownership. Raises 404 if missing or not owned."""
+    session = _sessions.get(session_id)
+    # Return 404 (not 403) so session IDs can't be probed
+    if not session or session.get("user_id") != user_id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
 def create_session(data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a new consulting session."""
     session_id = f"consult-{uuid.uuid4().hex[:12]}"
@@ -121,7 +132,10 @@ def create_session(data: Dict[str, Any]) -> Dict[str, Any]:
 # ==================== Session Management ====================
 
 @router.post("/sessions", response_model=ConsultingSessionResponse)
-async def create_consulting_session(request: ConsultingSessionRequest):
+async def create_consulting_session(
+    request: ConsultingSessionRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Start a new consulting session for a resume.
 
@@ -131,15 +145,18 @@ async def create_consulting_session(request: ConsultingSessionRequest):
     store = get_store()
 
     # Check premium access
-    if not gate.has_feature("anonymous", PremiumFeature.CONSULTING):
+    if not gate.has_feature(user.user_id, PremiumFeature.CONSULTING):
         raise HTTPException(
             status_code=402,
             detail={
                 "error": "Premium feature required",
                 "feature": "consulting",
-                "upgrade_options": gate.get_upgrade_options("anonymous"),
+                "upgrade_options": gate.get_upgrade_options(user.user_id),
             }
         )
+
+    # Verify the caller owns the batch containing the resume
+    await verify_batch_ownership(request.batch_id, user.user_id)
 
     # Verify resume exists
     resume = await store.get_resume(request.batch_id, request.resume_id)
@@ -148,6 +165,7 @@ async def create_consulting_session(request: ConsultingSessionRequest):
 
     # Create session
     session = create_session({
+        "user_id": user.user_id,
         "resume_id": request.resume_id,
         "batch_id": request.batch_id,
         "target_role": request.target_role,
@@ -166,11 +184,12 @@ async def create_consulting_session(request: ConsultingSessionRequest):
 
 
 @router.get("/sessions/{session_id}")
-async def get_consulting_session(session_id: str):
+async def get_consulting_session(
+    session_id: str,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """Get consulting session details."""
-    session = get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = get_owned_session(session_id, user.user_id)
 
     return {
         "session_id": session["session_id"],
@@ -186,7 +205,10 @@ async def get_consulting_session(session_id: str):
 # ==================== Analysis Operations ====================
 
 @router.post("/analyze", response_model=AnalysisResponse)
-async def analyze_resume(request: AnalysisRequest):
+async def analyze_resume(
+    request: AnalysisRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Get comprehensive analysis of a resume.
 
@@ -195,9 +217,7 @@ async def analyze_resume(request: AnalysisRequest):
     - Section-by-section feedback
     - Prioritized recommendations
     """
-    session = get_session(request.session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = get_owned_session(request.session_id, user.user_id)
 
     resume_data = session.get("resume_data", {})
     extracted = resume_data.get("extracted_data", {})
@@ -366,15 +386,16 @@ def _generate_overall_assessment(strengths: List[str], weaknesses: List[str]) ->
 # ==================== Rewrite Operations ====================
 
 @router.post("/rewrite", response_model=RewriteResponse)
-async def rewrite_section(request: RewriteRequest):
+async def rewrite_section(
+    request: RewriteRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Get a rewritten version of a resume section.
 
     Supports: summary, experience, skills
     """
-    session = get_session(request.session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = get_owned_session(request.session_id, user.user_id)
 
     resume_data = session.get("resume_data", {})
     extracted = resume_data.get("extracted_data", {})
@@ -508,13 +529,14 @@ def _calculate_improvement_score(original: str, rewritten: str) -> float:
 # ==================== Chat Operations ====================
 
 @router.post("/chat", response_model=ChatResponse)
-async def consulting_chat(request: ChatRequest):
+async def consulting_chat(
+    request: ChatRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Chat with the consulting AI about resume improvements.
     """
-    session = get_session(request.session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = get_owned_session(request.session_id, user.user_id)
 
     # Add user message
     user_message = ChatMessage(role="user", content=request.message)
@@ -624,11 +646,12 @@ def _generate_suggestions(message: str) -> List[str]:
 
 
 @router.get("/chat/{session_id}/history")
-async def get_chat_history(session_id: str):
+async def get_chat_history(
+    session_id: str,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """Get chat history for a session."""
-    session = get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = get_owned_session(session_id, user.user_id)
 
     return {
         "session_id": session_id,

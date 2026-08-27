@@ -193,6 +193,10 @@ class SubscriptionService:
         if not self.is_available():
             raise ValueError("Stripe is not configured")
 
+        # Never process webhooks without signature verification
+        if not STRIPE_WEBHOOK_SECRET:
+            raise ValueError("Webhook secret not configured - rejecting event")
+
         # Verify webhook signature
         try:
             event = stripe.Webhook.construct_event(
@@ -200,6 +204,8 @@ class SubscriptionService:
             )
         except stripe.error.SignatureVerificationError:
             raise ValueError("Invalid webhook signature")
+        except ValueError:
+            raise ValueError("Invalid webhook payload")
 
         # Handle different event types
         event_type = event["type"]

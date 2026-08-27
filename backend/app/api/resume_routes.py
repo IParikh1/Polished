@@ -3,7 +3,7 @@ Resume Writing API Routes for Polished Tech Sales Resume System.
 Premium feature for AI-powered resume generation and document export.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from datetime import datetime, timedelta
@@ -35,6 +35,8 @@ from ..services.document_generator import (
     ResumeData,
 )
 from ..services.premium_gate import get_premium_gate, PremiumFeature
+from ..middleware.auth import get_current_user, AuthenticatedUser
+from .batch_routes import verify_batch_ownership
 
 
 router = APIRouter(prefix="/resume", tags=["Resume Writing"])
@@ -43,7 +45,10 @@ router = APIRouter(prefix="/resume", tags=["Resume Writing"])
 # ==================== Resume Generation ====================
 
 @router.post("/generate", response_model=ResumeGenerateResponse)
-async def generate_resume(request: ResumeGenerateRequest):
+async def generate_resume(
+    request: ResumeGenerateRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Generate an optimized resume using AI.
 
@@ -58,13 +63,13 @@ async def generate_resume(request: ResumeGenerateRequest):
     store = get_store()
 
     # Check premium access
-    if not gate.has_feature("anonymous", PremiumFeature.RESUME_WRITING):
+    if not gate.has_feature(user.user_id, PremiumFeature.RESUME_WRITING):
         raise HTTPException(
             status_code=402,
             detail={
                 "error": "Resume writing is a premium feature",
                 "feature": "resume_writing",
-                "upgrade_options": gate.get_upgrade_options("anonymous"),
+                "upgrade_options": gate.get_upgrade_options(user.user_id),
             }
         )
 
@@ -73,6 +78,7 @@ async def generate_resume(request: ResumeGenerateRequest):
     extracted_data = {}
 
     if request.batch_id and request.resume_id:
+        await verify_batch_ownership(request.batch_id, user.user_id)
         resume = await store.get_resume(request.batch_id, request.resume_id)
         if not resume:
             raise HTTPException(status_code=404, detail="Resume not found")
@@ -115,7 +121,10 @@ async def generate_resume(request: ResumeGenerateRequest):
 
 
 @router.post("/rewrite-section", response_model=RewriteSectionResponse)
-async def rewrite_section(request: RewriteSectionRequest):
+async def rewrite_section(
+    request: RewriteSectionRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Rewrite a specific section of a resume.
 
@@ -126,13 +135,13 @@ async def rewrite_section(request: RewriteSectionRequest):
     gate = get_premium_gate()
 
     # Check premium access
-    if not gate.has_feature("anonymous", PremiumFeature.RESUME_WRITING):
+    if not gate.has_feature(user.user_id, PremiumFeature.RESUME_WRITING):
         raise HTTPException(
             status_code=402,
             detail={
                 "error": "Resume writing is a premium feature",
                 "feature": "resume_writing",
-                "upgrade_options": gate.get_upgrade_options("anonymous"),
+                "upgrade_options": gate.get_upgrade_options(user.user_id),
             }
         )
 
@@ -164,7 +173,10 @@ async def rewrite_section(request: RewriteSectionRequest):
 
 
 @router.post("/generate-summary", response_model=GenerateSummaryResponse)
-async def generate_summary(request: GenerateSummaryRequest):
+async def generate_summary(
+    request: GenerateSummaryRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Generate a professional summary for a resume.
 
@@ -179,19 +191,20 @@ async def generate_summary(request: GenerateSummaryRequest):
     store = get_store()
 
     # Check premium access
-    if not gate.has_feature("anonymous", PremiumFeature.RESUME_WRITING):
+    if not gate.has_feature(user.user_id, PremiumFeature.RESUME_WRITING):
         raise HTTPException(
             status_code=402,
             detail={
                 "error": "Resume writing is a premium feature",
                 "feature": "resume_writing",
-                "upgrade_options": gate.get_upgrade_options("anonymous"),
+                "upgrade_options": gate.get_upgrade_options(user.user_id),
             }
         )
 
     # Get extracted data
     extracted_data = {}
     if request.batch_id and request.resume_id:
+        await verify_batch_ownership(request.batch_id, user.user_id)
         resume = await store.get_resume(request.batch_id, request.resume_id)
         if resume:
             extracted_data = resume.get("extracted_data", {})
@@ -213,7 +226,10 @@ async def generate_summary(request: GenerateSummaryRequest):
 
 
 @router.post("/enhance-bullets", response_model=EnhanceBulletsResponse)
-async def enhance_bullets(request: EnhanceBulletsRequest):
+async def enhance_bullets(
+    request: EnhanceBulletsRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Enhance experience bullet points with metrics and impact.
 
@@ -227,13 +243,13 @@ async def enhance_bullets(request: EnhanceBulletsRequest):
     gate = get_premium_gate()
 
     # Check premium access
-    if not gate.has_feature("anonymous", PremiumFeature.RESUME_WRITING):
+    if not gate.has_feature(user.user_id, PremiumFeature.RESUME_WRITING):
         raise HTTPException(
             status_code=402,
             detail={
                 "error": "Resume writing is a premium feature",
                 "feature": "resume_writing",
-                "upgrade_options": gate.get_upgrade_options("anonymous"),
+                "upgrade_options": gate.get_upgrade_options(user.user_id),
             }
         )
 
@@ -269,7 +285,10 @@ async def enhance_bullets(request: EnhanceBulletsRequest):
 # ==================== Document Export ====================
 
 @router.post("/export", response_model=ExportResumeResponse)
-async def export_resume(request: ExportResumeRequest):
+async def export_resume(
+    request: ExportResumeRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Export resume to a formatted document (PDF, DOCX, TXT, HTML).
 
@@ -283,13 +302,13 @@ async def export_resume(request: ExportResumeRequest):
     store = get_store()
 
     # Check premium access
-    if not gate.has_feature("anonymous", PremiumFeature.RESUME_WRITING):
+    if not gate.has_feature(user.user_id, PremiumFeature.RESUME_WRITING):
         raise HTTPException(
             status_code=402,
             detail={
                 "error": "Resume export is a premium feature",
                 "feature": "resume_writing",
-                "upgrade_options": gate.get_upgrade_options("anonymous"),
+                "upgrade_options": gate.get_upgrade_options(user.user_id),
             }
         )
 
@@ -298,6 +317,7 @@ async def export_resume(request: ExportResumeRequest):
 
     # If resume_id provided, get extracted data
     if request.batch_id and request.resume_id:
+        await verify_batch_ownership(request.batch_id, user.user_id)
         resume = await store.get_resume(request.batch_id, request.resume_id)
         if resume:
             extracted = resume.get("extracted_data", {})
@@ -505,6 +525,7 @@ async def extract_metrics(
     batch_id: Optional[str] = None,
     resume_id: Optional[str] = None,
     target_role: SalesRole = SalesRole.ACCOUNT_EXECUTIVE,
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Extract sales metrics from a resume and identify what's missing.
@@ -521,6 +542,7 @@ async def extract_metrics(
     extracted_data = {}
 
     if batch_id and resume_id:
+        await verify_batch_ownership(batch_id, user.user_id)
         resume = await store.get_resume(batch_id, resume_id)
         if not resume:
             raise HTTPException(status_code=404, detail="Resume not found")
@@ -570,6 +592,7 @@ async def extract_metrics(
 async def format_metrics(
     metrics: dict,
     target_role: SalesRole = SalesRole.ACCOUNT_EXECUTIVE,
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Format collected metrics into resume-ready bullet points.

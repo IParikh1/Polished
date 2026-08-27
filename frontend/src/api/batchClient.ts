@@ -701,7 +701,6 @@ export interface LLMServiceStatus {
 export interface LLMConfigStatus {
   llm_configured: boolean
   api_key_set: boolean
-  api_key_prefix: string | null
   anthropic_package_installed: boolean
   services: {
     resume_writer: LLMServiceStatus

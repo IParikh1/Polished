@@ -18,35 +18,20 @@ CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY", "")
 CLERK_ISSUER_URL = os.getenv("CLERK_ISSUER_URL", "")
 
 
-def get_clerk_jwks_url_from_token(token: str) -> Optional[str]:
+def get_trusted_issuer() -> str:
     """
-    Extract the JWKS URL from the token's issuer claim.
-    Clerk tokens contain an 'iss' claim like 'https://clerk.your-domain.com' or
-    'https://xxx.clerk.accounts.dev'
+    Get the trusted Clerk issuer URL. Tokens whose 'iss' claim does not match
+    this value are rejected. Never derived from the (attacker-controlled) token.
     """
-    try:
-        # Decode without verification to get the issuer
-        unverified = jwt.decode(token, options={"verify_signature": False})
-        issuer = unverified.get("iss", "")
-        if issuer:
-            return f"{issuer}/.well-known/jwks.json"
-    except Exception:
-        pass
-    return None
-
-
-def get_clerk_jwks_url() -> str:
-    """Get the JWKS URL for Clerk token verification."""
     # If issuer URL is explicitly set, use it
     if CLERK_ISSUER_URL:
-        return f"{CLERK_ISSUER_URL}/.well-known/jwks.json"
+        return CLERK_ISSUER_URL.rstrip("/")
 
-    # Fallback: try to construct from publishable key (may not work for all setups)
-    # The publishable key contains a base64-encoded JSON with the frontend API URL
+    # Fallback: construct from publishable key (server-side config, not the token).
+    # The part after pk_test_/pk_live_ is the base64-encoded Clerk frontend API domain.
     if CLERK_PUBLISHABLE_KEY:
         try:
             import base64
-            # The part after pk_test_ or pk_live_ is base64-encoded
             if CLERK_PUBLISHABLE_KEY.startswith("pk_test_"):
                 encoded = CLERK_PUBLISHABLE_KEY.replace("pk_test_", "")
             elif CLERK_PUBLISHABLE_KEY.startswith("pk_live_"):
@@ -59,15 +44,24 @@ def get_clerk_jwks_url() -> str:
                 padding = 4 - len(encoded) % 4
                 if padding != 4:
                     encoded += "=" * padding
-                decoded = base64.b64decode(encoded).decode('utf-8')
-                # The decoded string is the Clerk frontend API domain
+                decoded = base64.b64decode(encoded).decode("utf-8").strip().rstrip("$")
                 # Format: clerk.xxx.xxx or xxx.clerk.accounts.dev
-                return f"https://{decoded}/.well-known/jwks.json"
+                return f"https://{decoded}"
         except Exception as e:
             print(f"Failed to decode Clerk publishable key: {e}")
 
-    # Last resort fallback
+    # No trusted issuer configured - verification must fail closed
     return ""
+
+
+def get_clerk_jwks_url() -> str:
+    """Get the JWKS URL for Clerk token verification (from the trusted issuer only)."""
+    issuer = get_trusted_issuer()
+    return f"{issuer}/.well-known/jwks.json" if issuer else ""
+
+
+def _is_production() -> bool:
+    return os.getenv("ENVIRONMENT", "development").lower() == "production"
 
 
 # Security scheme for Bearer tokens
@@ -112,29 +106,30 @@ def verify_clerk_token(token: str) -> Optional[dict]:
         Decoded token payload if valid, None otherwise
     """
     try:
-        # First, try to get JWKS URL from the token's issuer claim
-        jwks_url = get_clerk_jwks_url_from_token(token)
+        # Only ever fetch keys from the configured/derived issuer - never from
+        # the token's own 'iss' claim (that would let an attacker point us at
+        # their own JWKS and mint arbitrary identities).
+        trusted_issuer = get_trusted_issuer()
+        jwks_url = get_clerk_jwks_url()
 
-        if not jwks_url:
-            # Fallback to configured/computed JWKS URL
-            jwks_url = get_clerk_jwks_url()
-
-        if not jwks_url:
-            print("No JWKS URL available - cannot verify token")
+        if not trusted_issuer or not jwks_url:
+            print("No trusted Clerk issuer configured (set CLERK_ISSUER_URL) - rejecting token")
             return None
 
         # Get cached JWKS client for this URL
         jwks_client = get_jwks_client(jwks_url)
         signing_key = jwks_client.get_signing_key_from_jwt(token)
 
-        # Decode and verify the token
+        # Decode and verify the token, pinning the issuer
         payload = jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256"],
+            issuer=trusted_issuer,
             options={
                 "verify_signature": True,
                 "verify_exp": True,
+                "verify_iss": True,
                 "verify_aud": False,  # Clerk doesn't use audience
             }
         )
@@ -183,8 +178,8 @@ async def get_current_user(
         async def protected_endpoint(user: AuthenticatedUser = Depends(get_current_user)):
             return {"user_id": user.user_id}
     """
-    # Check for development/bypass mode
-    if os.getenv("AUTH_BYPASS", "").lower() == "true":
+    # Check for development/bypass mode (never honored in production)
+    if os.getenv("AUTH_BYPASS", "").lower() == "true" and not _is_production():
         return AuthenticatedUser(
             user_id="dev-user-001",
             email="dev@example.com",
@@ -228,8 +223,8 @@ async def get_optional_user(
                 return {"user_id": user.user_id}
             return {"message": "anonymous access"}
     """
-    # Check for development/bypass mode
-    if os.getenv("AUTH_BYPASS", "").lower() == "true":
+    # Check for development/bypass mode (never honored in production)
+    if os.getenv("AUTH_BYPASS", "").lower() == "true" and not _is_production():
         return AuthenticatedUser(
             user_id="dev-user-001",
             email="dev@example.com",

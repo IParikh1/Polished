@@ -133,7 +133,10 @@ class PremiumGate:
         Args:
             bypass_mode: If True, all features are available (for MVP/testing)
         """
-        self.bypass_mode = bypass_mode or os.getenv("PREMIUM_BYPASS", "").lower() == "true"
+        # Bypass unlocks every paid feature - never honor it in production
+        is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+        env_bypass = os.getenv("PREMIUM_BYPASS", "").lower() == "true"
+        self.bypass_mode = (bypass_mode or env_bypass) and not is_production
         self._user_tiers: Dict[str, PremiumTier] = {}
         self._usage_tracking: Dict[str, Dict[str, int]] = {}
 

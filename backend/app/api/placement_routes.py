@@ -3,7 +3,7 @@ Placement Tracking API Routes for Polished Resume Ranking System.
 Handles placement reporting, verification, and revenue tracking.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional, List
 from datetime import datetime
 
@@ -18,6 +18,9 @@ from ..models.batch_schemas import (
 )
 from ..services.aws_store import get_store
 from ..services.premium_gate import get_premium_gate, PremiumFeature
+from ..middleware.auth import get_current_user, AuthenticatedUser
+from ..middleware.admin import get_current_admin
+from .batch_routes import verify_batch_ownership
 
 
 router = APIRouter(prefix="/placements", tags=["Placements"])
@@ -26,7 +29,10 @@ router = APIRouter(prefix="/placements", tags=["Placements"])
 # ==================== Placement CRUD Operations ====================
 
 @router.post("", response_model=PlacementResponse)
-async def report_placement(request: PlacementCreateRequest):
+async def report_placement(
+    request: PlacementCreateRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Report a new placement for revenue tracking.
 
@@ -35,15 +41,8 @@ async def report_placement(request: PlacementCreateRequest):
     store = get_store()
     gate = get_premium_gate()
 
-    # Check if placement tracking is available
-    if not gate.has_feature("anonymous", PremiumFeature.PLACEMENT_TRACKING):
-        # Allow basic placement reporting for all users
-        pass
-
-    # Verify batch and resume exist
-    batch = await store.get_batch(request.batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify the caller owns the batch (also confirms it exists)
+    batch = await verify_batch_ownership(request.batch_id, user.user_id)
 
     resume = await store.get_resume(request.batch_id, request.resume_id)
     if not resume:
@@ -52,6 +51,7 @@ async def report_placement(request: PlacementCreateRequest):
     # Create placement
     placement_data = {
         "placement_id": generate_placement_id(),
+        "reported_by": user.user_id,
         "batch_id": request.batch_id,
         "resume_id": request.resume_id,
         "company_name": request.company_name,
@@ -85,6 +85,7 @@ async def list_placements(
     batch_id: Optional[str] = Query(None, description="Filter by batch ID"),
     status: Optional[PlacementStatus] = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=200),
+    admin: AuthenticatedUser = Depends(get_current_admin),
 ):
     """
     List all placements with optional filters.
@@ -127,7 +128,7 @@ async def list_placements(
 
 
 @router.get("/stats", response_model=PlacementStatsResponse)
-async def get_placement_stats():
+async def get_placement_stats(admin: AuthenticatedUser = Depends(get_current_admin)):
     """
     Get aggregated placement statistics.
 
@@ -150,8 +151,11 @@ async def get_placement_stats():
 
 
 @router.get("/{placement_id}", response_model=PlacementResponse)
-async def get_placement(placement_id: str):
-    """Get a specific placement by ID."""
+async def get_placement(
+    placement_id: str,
+    admin: AuthenticatedUser = Depends(get_current_admin),
+):
+    """Get a specific placement by ID. Admin only."""
     store = get_store()
 
     placement = await store.get_placement(placement_id)
@@ -181,6 +185,7 @@ async def get_placement(placement_id: str):
 async def verify_placement(
     placement_id: str,
     request: PlacementVerifyRequest,
+    admin: AuthenticatedUser = Depends(get_current_admin),
 ):
     """
     Verify or dispute a placement.
@@ -239,6 +244,7 @@ async def verify_placement(
 async def dispute_placement(
     placement_id: str,
     reason: str = Query(..., min_length=10, max_length=1000),
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Dispute a placement verification.
@@ -270,7 +276,10 @@ async def dispute_placement(
 # ==================== Payment Operations ====================
 
 @router.post("/{placement_id}/mark-paid")
-async def mark_placement_paid(placement_id: str):
+async def mark_placement_paid(
+    placement_id: str,
+    admin: AuthenticatedUser = Depends(get_current_admin),
+):
     """
     Mark a placement fee as paid.
 
@@ -306,13 +315,14 @@ async def mark_placement_paid(placement_id: str):
 # ==================== Batch Placement Operations ====================
 
 @router.get("/batch/{batch_id}")
-async def get_batch_placements(batch_id: str):
-    """Get all placements from a specific batch."""
+async def get_batch_placements(
+    batch_id: str,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    """Get all placements from a specific batch. Only accessible by the batch owner."""
     store = get_store()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    batch = await verify_batch_ownership(batch_id, user.user_id)
 
     placements = await store.list_placements(batch_id=batch_id)
 

@@ -20,6 +20,8 @@ from .api.admin_routes import router as admin_router
 from .api.user_routes import router as user_router
 from .services.batch_cache import get_cache
 from .services.premium_gate import get_premium_gate
+from .middleware.auth import get_current_user
+from fastapi import Depends
 
 
 # Application metadata
@@ -98,6 +100,9 @@ app.add_middleware(
 )
 
 
+IS_PRODUCTION = os.getenv("ENVIRONMENT", "development").lower() == "production"
+
+
 # Request timing middleware
 @app.middleware("http")
 async def add_timing_header(request: Request, call_next):
@@ -106,6 +111,35 @@ async def add_timing_header(request: Request, call_next):
     response = await call_next(request)
     process_time = time.time() - start_time
     response.headers["X-Process-Time"] = str(round(process_time * 1000, 2))
+    return response
+
+
+# Security headers + HTTPS enforcement middleware
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """Force HTTPS in production and attach security headers to every response."""
+    # Railway terminates TLS and sets X-Forwarded-Proto
+    if IS_PRODUCTION:
+        proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        if proto == "http":
+            https_url = request.url.replace(scheme="https")
+            return JSONResponse(
+                status_code=308,
+                content={"detail": "HTTPS required"},
+                headers={"Location": str(https_url)},
+            )
+
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    # API serves JSON only - lock down anything that tries to render it
+    # (docs pages need CDN assets, so they're exempt from the strict CSP)
+    if request.url.path not in ("/docs", "/redoc"):
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    if IS_PRODUCTION:
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
     return response
 
 
@@ -158,13 +192,14 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
-    """Handle unexpected exceptions."""
+    """Handle unexpected exceptions. Never leak internals in production."""
     print(f"Unexpected error: {exc}")
+    show_detail = os.getenv("DEBUG", "").lower() == "true" and not IS_PRODUCTION
     return JSONResponse(
         status_code=500,
         content={
             "error": "Internal server error",
-            "detail": str(exc) if os.getenv("DEBUG", "").lower() == "true" else None,
+            "detail": str(exc) if show_detail else None,
         },
     )
 
@@ -233,12 +268,12 @@ async def api_info():
 
 # LLM Configuration status endpoint
 @app.get("/api/v1/config/llm-status", tags=["Config"])
-async def get_llm_status():
+async def get_llm_status(user=Depends(get_current_user)):
     """
     Check LLM service configuration status.
 
-    Returns whether the Anthropic API key is configured and LLM features are available.
-    Does not expose the actual API key value.
+    Requires authentication. Returns whether the Anthropic API key is configured
+    and LLM features are available. Never exposes any part of the key itself.
     """
     from .services.resume_writer import get_writer
     from .services.metrics_extractor import get_extractor
@@ -248,11 +283,6 @@ async def get_llm_status():
 
     # Check if API key is configured (without exposing it)
     api_key_set = bool(os.getenv("ANTHROPIC_API_KEY"))
-    api_key_prefix = None
-    if api_key_set:
-        key = os.getenv("ANTHROPIC_API_KEY", "")
-        # Show only the first 10 chars for verification (e.g., "sk-ant-api...")
-        api_key_prefix = key[:10] + "..." if len(key) > 10 else "***"
 
     # Try to import anthropic to check if package is installed
     try:
@@ -264,7 +294,6 @@ async def get_llm_status():
     return {
         "llm_configured": api_key_set and anthropic_installed,
         "api_key_set": api_key_set,
-        "api_key_prefix": api_key_prefix,
         "anthropic_package_installed": anthropic_installed,
         "services": {
             "resume_writer": {

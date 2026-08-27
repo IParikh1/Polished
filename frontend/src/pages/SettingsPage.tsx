@@ -154,7 +154,7 @@ export default function SettingsPage() {
                 </p>
                 <p className="text-sm text-gray-500">
                   {llmLoading ? 'Fetching status...' : llmStatus?.llm_configured
-                    ? `API Key: ${llmStatus.api_key_prefix || 'Configured'}`
+                    ? 'API Key: Configured'
                     : 'API key not configured'
                   }
                 </p>
