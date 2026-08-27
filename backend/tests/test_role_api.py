@@ -8,6 +8,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import io
 
 from app.models.batch_schemas import SalesRole
+from app.middleware.auth import AuthenticatedUser
+
+TEST_USER = AuthenticatedUser(user_id="test-user-001", email="test@example.com")
 
 
 class TestRoleUploadEndpoint:
@@ -43,6 +46,7 @@ class TestRoleUploadEndpoint:
                 batch_id="batch-test123",
                 file=mock_file,
                 target_role=SalesRole.ACCOUNT_EXECUTIVE,
+                user=TEST_USER,
             )
 
             # Verify result
@@ -84,6 +88,8 @@ class TestRoleUploadEndpoint:
                 batch_id="batch-test123",
                 files=mock_files,
                 target_role=SalesRole.SDR,
+                role_mapping=None,
+                user=TEST_USER,
             )
 
             # Verify result
@@ -120,6 +126,7 @@ class TestRoleUploadEndpoint:
                 batch_id="batch-test123",
                 file=mock_file,
                 target_role=None,
+                user=TEST_USER,
             )
 
             assert result["resume_id"] == "resume-test123"

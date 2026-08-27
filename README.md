@@ -82,7 +82,10 @@ AWS_SECRET_ACCESS_KEY=your-secret
 S3_BUCKET=polished-batches-us-east-1
 DYNAMODB_TABLE_PREFIX=polished
 REDIS_URL=redis://localhost:6379/0
-PREMIUM_BYPASS=true
+# Development only - ignored when ENVIRONMENT=production
+PREMIUM_BYPASS=false
+# Pin the Clerk JWT issuer (required in production)
+CLERK_ISSUER_URL=https://your-app.clerk.accounts.dev
 ```
 
 ### Frontend (.env)

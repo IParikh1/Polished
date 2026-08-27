@@ -1,7 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 import Layout from './components/Layout'
 import { ProtectedRoute } from './components/auth'
+import LandingPage from './pages/LandingPage'
 import BatchDashboard from './pages/BatchDashboard'
 import ConsultingPage from './pages/ConsultingPage'
 import WritingPage from './pages/WritingPage'
@@ -15,6 +17,8 @@ import AdminPage from './pages/AdminPage'
 const SignInPage = lazy(() => import('./components/auth/SignInPage'))
 const SignUpPage = lazy(() => import('./components/auth/SignUpPage'))
 
+const isClerkConfigured = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.startsWith('pk_')
+
 // Loading fallback for lazy-loaded components
 function LoadingSpinner() {
   return (
@@ -24,23 +28,44 @@ function LoadingSpinner() {
   )
 }
 
+// Landing page for visitors; signed-in users go straight to the app
+function HomeGate() {
+  if (!isClerkConfigured) {
+    return <LandingPage />
+  }
+  return <HomeGateWithAuth />
+}
+
+function HomeGateWithAuth() {
+  const { isLoaded, isSignedIn } = useAuth()
+
+  if (!isLoaded) {
+    return <LoadingSpinner />
+  }
+  if (isSignedIn) {
+    return <Navigate to="/batches" replace />
+  }
+  return <LandingPage />
+}
+
 function App() {
   return (
     <Routes>
+      {/* Public landing page */}
+      <Route path="/" element={<HomeGate />} />
+
       {/* Public auth routes - lazy loaded */}
       <Route path="/sign-in/*" element={<Suspense fallback={<LoadingSpinner />}><SignInPage /></Suspense>} />
       <Route path="/sign-up/*" element={<Suspense fallback={<LoadingSpinner />}><SignUpPage /></Suspense>} />
 
       {/* Protected app routes */}
       <Route
-        path="/"
         element={
           <ProtectedRoute>
             <Layout />
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/batches" replace />} />
         <Route path="batches" element={<BatchDashboard />} />
         <Route path="batches/:batchId" element={<BatchDashboard />} />
         <Route path="consulting" element={<ConsultingPage />} />
@@ -53,6 +78,9 @@ function App() {
         <Route path="help" element={<HelpPage />} />
         <Route path="admin" element={<AdminPage />} />
       </Route>
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

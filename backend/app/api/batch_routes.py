@@ -49,6 +49,47 @@ router = APIRouter(prefix="/batches", tags=["Batches"])
 
 # ==================== Helper Functions ====================
 
+# Upload constraints
+MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB per resume file
+ALLOWED_UPLOAD_EXTENSIONS = [".pdf", ".doc", ".docx", ".txt", ".rtf"]
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Strip path components and dangerous characters from an uploaded filename
+    so it can't inject path segments into S3 keys.
+    """
+    import os as _os
+    import re as _re
+    # Strip any directory components (handles both / and \)
+    name = _os.path.basename(filename.replace("\\", "/"))
+    # Keep a conservative character set
+    name = _re.sub(r"[^A-Za-z0-9._ ()-]", "_", name).strip(". ")
+    return name[:200] or "resume"
+
+
+def validate_upload_file(filename: str, content: bytes) -> str:
+    """
+    Validate an uploaded file's extension and size.
+    Returns the sanitized filename, or raises HTTPException.
+    """
+    safe_name = sanitize_filename(filename or "")
+    ext = "." + safe_name.lower().split(".")[-1] if "." in safe_name else ""
+    if ext not in ALLOWED_UPLOAD_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type {ext or '(none)'} not supported. Allowed: {ALLOWED_UPLOAD_EXTENSIONS}"
+        )
+    if len(content) > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large ({len(content)} bytes). Max {MAX_UPLOAD_SIZE_BYTES // (1024*1024)} MB."
+        )
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Empty file")
+    return safe_name
+
+
 async def verify_batch_ownership(batch_id: str, user_id: str) -> dict:
     """
     Verify that a user owns a batch. Returns the batch if owned.
@@ -438,22 +479,14 @@ async def upload_resume(
     # Verify ownership
     await verify_batch_ownership(batch_id, user.user_id)
 
-    # Validate file type
-    allowed_types = [".pdf", ".doc", ".docx", ".txt", ".rtf"]
-    ext = "." + file.filename.lower().split(".")[-1] if "." in file.filename else ""
-    if ext not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File type {ext} not supported. Allowed: {allowed_types}"
-        )
-
-    # Read file content
+    # Read and validate file (type, size, sanitized name)
     content = await file.read()
+    safe_name = validate_upload_file(file.filename, content)
 
     # Add resume with target role
     resume = await store.add_resume(
         batch_id,
-        file.filename,
+        safe_name,
         file_content=content,
         content_type=file.content_type,
         target_role=target_role.value if target_role else None,
@@ -498,28 +531,26 @@ async def upload_multiple_resumes(
             raise HTTPException(status_code=400, detail="Invalid role_mapping JSON format")
 
     results = []
-    allowed_types = [".pdf", ".doc", ".docx", ".txt", ".rtf"]
     default_role_value = target_role.value if target_role else None
+    valid_roles = {r.value for r in SalesRole}
 
     for file in files:
-        ext = "." + file.filename.lower().split(".")[-1] if "." in file.filename else ""
-
-        if ext not in allowed_types:
+        # Get role for this specific file, or fall back to default
+        file_role = file_role_map.get(file.filename, default_role_value)
+        if file_role is not None and file_role not in valid_roles:
             results.append({
                 "filename": file.filename,
                 "status": "error",
-                "error": f"File type {ext} not supported"
+                "error": f"Invalid target role: {file_role}"
             })
             continue
 
-        # Get role for this specific file, or fall back to default
-        file_role = file_role_map.get(file.filename, default_role_value)
-
         try:
             content = await file.read()
+            safe_name = validate_upload_file(file.filename, content)
             resume = await store.add_resume(
                 batch_id,
-                file.filename,
+                safe_name,
                 file_content=content,
                 content_type=file.content_type,
                 target_role=file_role,
@@ -530,11 +561,17 @@ async def upload_multiple_resumes(
                 "status": "uploaded",
                 "target_role": file_role,
             })
-        except Exception as e:
+        except HTTPException as e:
             results.append({
                 "filename": file.filename,
                 "status": "error",
-                "error": str(e)
+                "error": e.detail if isinstance(e.detail, str) else "Validation failed"
+            })
+        except Exception:
+            results.append({
+                "filename": file.filename,
+                "status": "error",
+                "error": "Upload failed"
             })
 
     return {
@@ -551,9 +588,17 @@ async def confirm_resume_upload(
     batch_id: str,
     resume_id: str,
     s3_key: str = Query(..., description="S3 key of uploaded file"),
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Confirm that a resume was uploaded successfully via presigned URL."""
     store = get_store()
+
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
+
+    # Only accept keys inside this batch's prefix
+    if not s3_key.startswith(f"{batch_id}/"):
+        raise HTTPException(status_code=400, detail="Invalid S3 key for this batch")
 
     success = await store.confirm_resume_upload(batch_id, resume_id, s3_key)
 
@@ -847,13 +892,15 @@ async def export_batch(
 
 
 @router.get("/{batch_id}/exports")
-async def list_exports(batch_id: str):
-    """List all exports for a batch."""
+async def list_exports(
+    batch_id: str,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    """List all exports for a batch. Only accessible by the batch owner."""
     store = get_store()
 
-    batch = await store.get_batch(batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
 
     exports = await store.list_exports(batch_id)
 
@@ -866,7 +913,10 @@ async def list_exports(batch_id: str):
 # ==================== JD Matching Operations (Tech Sales) ====================
 
 @router.post("/match-jd", response_model=JDMatchResult)
-async def match_job_description(request: JDMatchRequest):
+async def match_job_description(
+    request: JDMatchRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Match a resume against a job description.
 
@@ -882,12 +932,12 @@ async def match_job_description(request: JDMatchRequest):
     gate = get_premium_gate()
 
     # Validate premium access
-    if not gate.has_feature("anonymous", PremiumFeature.JD_MATCHING):
+    if not gate.has_feature(user.user_id, PremiumFeature.JD_MATCHING):
         raise HTTPException(
             status_code=402,
             detail={
                 "error": "JD Matching is a premium feature",
-                "upgrade_options": gate.get_upgrade_options("anonymous")
+                "upgrade_options": gate.get_upgrade_options(user.user_id)
             }
         )
 
@@ -896,6 +946,8 @@ async def match_job_description(request: JDMatchRequest):
     resume_data = {}
 
     if request.batch_id and request.resume_id:
+        # Verify ownership of the batch containing the resume
+        await verify_batch_ownership(request.batch_id, user.user_id)
         resume = await store.get_resume(request.batch_id, request.resume_id)
         if not resume:
             raise HTTPException(status_code=404, detail="Resume not found")
@@ -938,6 +990,7 @@ async def match_resume_to_jd(
     job_description: str,
     job_title: Optional[str] = None,
     target_role: Optional[SalesRole] = None,
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Match a specific resume against a job description.
@@ -947,13 +1000,16 @@ async def match_resume_to_jd(
     store = get_store()
     gate = get_premium_gate()
 
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
+
     # Validate premium access
-    if not gate.has_feature("anonymous", PremiumFeature.JD_MATCHING):
+    if not gate.has_feature(user.user_id, PremiumFeature.JD_MATCHING):
         raise HTTPException(
             status_code=402,
             detail={
                 "error": "JD Matching is a premium feature",
-                "upgrade_options": gate.get_upgrade_options("anonymous")
+                "upgrade_options": gate.get_upgrade_options(user.user_id)
             }
         )
 
@@ -990,7 +1046,10 @@ async def match_resume_to_jd(
 
 
 @router.post("/tailor-resume", response_model=TailoredResumeResponse)
-async def tailor_resume(request: TailoredResumeRequest):
+async def tailor_resume(
+    request: TailoredResumeRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Generate a JD-tailored version of a resume.
 
@@ -1003,12 +1062,12 @@ async def tailor_resume(request: TailoredResumeRequest):
     gate = get_premium_gate()
 
     # Validate premium access
-    if not gate.has_feature("anonymous", PremiumFeature.DEEP_ANALYSIS):
+    if not gate.has_feature(user.user_id, PremiumFeature.DEEP_ANALYSIS):
         raise HTTPException(
             status_code=402,
             detail={
                 "error": "Resume tailoring is a premium feature",
-                "upgrade_options": gate.get_upgrade_options("anonymous")
+                "upgrade_options": gate.get_upgrade_options(user.user_id)
             }
         )
 
@@ -1017,6 +1076,8 @@ async def tailor_resume(request: TailoredResumeRequest):
     resume_data = {}
 
     if request.batch_id and request.resume_id:
+        # Verify ownership of the batch containing the resume
+        await verify_batch_ownership(request.batch_id, user.user_id)
         resume = await store.get_resume(request.batch_id, request.resume_id)
         if not resume:
             raise HTTPException(status_code=404, detail="Resume not found")
@@ -1090,6 +1151,7 @@ async def set_resume_role(
     batch_id: str,
     resume_id: str,
     request: SetRoleRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Set the target sales role for a resume.
@@ -1097,6 +1159,9 @@ async def set_resume_role(
     Updates the resume record with the target role for optimized analysis.
     """
     store = get_store()
+
+    # Verify ownership
+    await verify_batch_ownership(batch_id, user.user_id)
 
     # Get resume
     resume = await store.get_resume(batch_id, resume_id)
@@ -1128,7 +1193,10 @@ async def set_resume_role(
 
 
 @router.get("/parse-jd")
-async def parse_jd(job_description: str):
+async def parse_jd(
+    job_description: str,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Parse a job description and extract requirements.
 

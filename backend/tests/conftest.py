@@ -130,6 +130,7 @@ def mock_batch_data() -> dict:
     """Mock batch data for testing."""
     return {
         "batch_id": "batch-test123",
+        "user_id": "test-user-001",
         "name": "Test Batch",
         "status": "pending",
         "total_resumes": 0,

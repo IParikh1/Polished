@@ -130,6 +130,7 @@ class S3Client:
                     Key=s3_key,
                     Body=file_content,
                     ContentType=content_type,
+                    ServerSideEncryption="AES256",
                     Metadata={
                         "batch_id": batch_id,
                         "resume_id": resume_id,
@@ -144,6 +145,7 @@ class S3Client:
                     s3_key,
                     ExtraArgs={
                         "ContentType": content_type,
+                        "ServerSideEncryption": "AES256",
                         "Metadata": {
                             "batch_id": batch_id,
                             "resume_id": resume_id,
@@ -273,7 +275,8 @@ class S3Client:
                 Bucket=self.bucket_name,
                 Key=s3_key,
                 Body=json.dumps(metadata, default=str),
-                ContentType="application/json"
+                ContentType="application/json",
+                ServerSideEncryption="AES256",
             )
             return True
         except ClientError as e:
@@ -328,6 +331,7 @@ class S3Client:
                 Key=s3_key,
                 Body=content,
                 ContentType=content_type,
+                ServerSideEncryption="AES256",
                 Metadata={
                     "batch_id": batch_id,
                     "export_id": export_id,

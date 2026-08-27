@@ -1,7 +1,33 @@
 # Polished Tech Sales Features - Progress Tracker
 
-**Last Updated:** January 26, 2026 (Session 16 - Admin Dashboard & Analytics)
-**Overall Status:** 🟡 In Progress - Auth Complete, Admin Dashboard Complete, Paywall Pending Configuration, Scoring Enhanced
+**Last Updated:** August 26, 2026 (Session 17 - Security Hardening & Landing Page)
+**Overall Status:** 🟡 In Progress - Auth Complete, Admin Dashboard Complete, Paywall Pending Configuration, Scoring Enhanced, Security Hardened
+
+---
+
+## Session 17 (August 26, 2026) - Security Hardening & Landing Page
+
+**Critical fix — Clerk JWT verification:**
+- JWKS URL was derived from the token's own (unverified) `iss` claim, letting anyone mint valid tokens from their own JWKS. Now the issuer is pinned server-side (`CLERK_ISSUER_URL`, or derived from the publishable key), `jwt.decode` verifies `iss`, and verification fails closed if no issuer is configured. **Set `CLERK_ISSUER_URL` on Railway.**
+
+**Authorization sweep — added auth + ownership checks to every previously open endpoint:**
+- batch_routes: confirm-upload, exports list, match-jd (both), tailor-resume, set-role, parse-jd
+- resume_routes: generate, rewrite-section, generate-summary, enhance-bullets, export, extract-metrics, format-metrics
+- consult_routes: all endpoints; sessions now store and enforce owner user_id
+- placement_routes: all endpoints; verify / mark-paid / list / stats / get are admin-only
+- Premium gate checks now use the real user_id instead of the "anonymous" placeholder
+
+**Other hardening:**
+- `AUTH_BYPASS` and `PREMIUM_BYPASS` are ignored when `ENVIRONMENT=production`
+- Security headers + HTTPS redirect middleware on the API; headers added to vercel.json and nginx.conf
+- 500 handler never leaks exception text in production; llm-status requires auth and no longer returns the API key prefix
+- Upload validation: 10 MB size cap, filename sanitization (S3 key injection), role_mapping validation
+- S3 objects written with SSE (AES256); Stripe webhook rejects events if webhook secret unset
+- `.env.example`: safe defaults (bypasses off), removed unused OPENAI key, added Clerk/Stripe vars
+- Dependency scans: git history clean (no secrets ever committed); npm audit fix applied (remaining: dev-only esbuild + react-router v7 breaking upgrade); pip-audit floors added (pillow, requests, click, python-dotenv, pytest)
+- Fixed 3 pre-existing test failures (direct endpoint calls missing user arg) — 33/33 passing
+
+**New: public landing page** (`frontend/src/pages/LandingPage.tsx`) at `/` — hero, features, how-it-works, pricing, CTA. Signed-in users are forwarded to /batches; app routes unchanged.
 
 ---
 
