@@ -3,7 +3,9 @@ import axios from 'axios'
 // Use environment variable for API base, fallback to relative path for proxy
 const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
 
-const api = axios.create({
+// Shared authenticated client - other API modules (e.g. consultClient) reuse
+// this instance so they pick up the Clerk Bearer token interceptor below.
+export const api = axios.create({
   baseURL: API_BASE,
   headers: {
     'Content-Type': 'application/json',

@@ -71,6 +71,18 @@ async def lifespan(app: FastAPI):
     gate = get_premium_gate()
     print(f"Premium bypass mode: {gate.bypass_mode}")
 
+    # Fail fast if auth can't work: in production every token would be
+    # rejected (verification fails closed without a pinned issuer), which
+    # would otherwise look like a healthy deploy with a silent total outage.
+    if os.getenv("ENVIRONMENT", "development").lower() == "production":
+        from .middleware.auth import get_trusted_issuer
+        if not get_trusted_issuer():
+            raise RuntimeError(
+                "No trusted Clerk issuer configured. Set CLERK_ISSUER_URL "
+                "(or CLERK_PUBLISHABLE_KEY) - refusing to start in production "
+                "because every authenticated request would return 401."
+            )
+
     yield
 
     # Shutdown
@@ -114,35 +126,6 @@ async def add_timing_header(request: Request, call_next):
     return response
 
 
-# Security headers + HTTPS enforcement middleware
-@app.middleware("http")
-async def security_headers_middleware(request: Request, call_next):
-    """Force HTTPS in production and attach security headers to every response."""
-    # Railway terminates TLS and sets X-Forwarded-Proto
-    if IS_PRODUCTION:
-        proto = request.headers.get("x-forwarded-proto", request.url.scheme)
-        if proto == "http":
-            https_url = request.url.replace(scheme="https")
-            return JSONResponse(
-                status_code=308,
-                content={"detail": "HTTPS required"},
-                headers={"Location": str(https_url)},
-            )
-
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "no-referrer"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    # API serves JSON only - lock down anything that tries to render it
-    # (docs pages need CDN assets, so they're exempt from the strict CSP)
-    if request.url.path not in ("/docs", "/redoc"):
-        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
-    if IS_PRODUCTION:
-        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
-    return response
-
-
 # Rate limiting middleware
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
@@ -174,6 +157,45 @@ async def rate_limit_middleware(request: Request, call_next):
 
     response = await call_next(request)
     response.headers["X-RateLimit-Remaining"] = str(remaining)
+    return response
+
+
+# Security headers + HTTPS enforcement middleware.
+# Registered LAST so it is the OUTERMOST middleware (Starlette wraps in reverse
+# registration order) - headers are attached even to rate-limit 429 early returns.
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """Force HTTPS in production and attach security headers to every response."""
+    # Railway terminates TLS and sets X-Forwarded-Proto
+    if IS_PRODUCTION:
+        proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        if proto == "http":
+            # Redirect to the configured canonical host, never the client-supplied
+            # Host header (avoids a host-header-injection open redirect on 308)
+            canonical = os.getenv("PUBLIC_API_HOST", "")
+            if canonical:
+                location = f"https://{canonical}{request.url.path}"
+                if request.url.query:
+                    location += f"?{request.url.query}"
+            else:
+                location = str(request.url.replace(scheme="https"))
+            return JSONResponse(
+                status_code=308,
+                content={"detail": "HTTPS required"},
+                headers={"Location": location},
+            )
+
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    # API serves JSON only - lock down anything that tries to render it
+    # (docs pages need CDN assets, so they're exempt from the strict CSP)
+    if request.url.path not in ("/docs", "/redoc"):
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    if IS_PRODUCTION:
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
     return response
 
 
