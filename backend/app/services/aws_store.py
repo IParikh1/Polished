@@ -309,13 +309,21 @@ class AWSStore:
         if text:
             return text
 
-        content = await self.get_resume_content(batch_id, resume_id)
-        if not content:
-            return ""
-
+        # S3 download + document parsing are blocking (sync boto3, PyPDF2) -
+        # run them off the event loop so concurrent requests aren't stalled
+        import asyncio
         from .batch_processor import ResumeParser
+
+        def _download_and_parse() -> str:
+            if not resume.get("s3_key"):
+                return ""
+            content = self.s3.get_resume(resume["s3_key"])
+            if not content:
+                return ""
+            return ResumeParser.parse(content, resume.get("filename", ""))
+
         try:
-            text = ResumeParser.parse(content, resume.get("filename", ""))
+            text = await asyncio.to_thread(_download_and_parse)
         except Exception as e:
             print(f"Error parsing resume text for {resume_id}: {e}")
             return ""

@@ -255,8 +255,18 @@ async def dispute_placement(
     if not placement:
         raise HTTPException(status_code=404, detail="Placement not found")
 
+    # Only the reporter, the owner of the batch, or an admin may dispute
+    from ..middleware.admin import is_admin_user
+    is_reporter = placement.get("reported_by") == user.user_id
+    if not is_reporter and not is_admin_user(user):
+        batch = await store.get_batch(placement.get("batch_id", ""))
+        if not batch or batch.get("user_id") != user.user_id:
+            # 404 so placement IDs can't be probed
+            raise HTTPException(status_code=404, detail="Placement not found")
+
     verification_details = {
         "dispute_reason": reason,
+        "disputed_by": user.user_id,
         "disputed_at": datetime.utcnow().isoformat(),
         **(placement.get("verification_details") or {}),
     }

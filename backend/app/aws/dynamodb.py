@@ -202,12 +202,14 @@ class DynamoDBClient:
             "s3_key": resume_data.get("s3_key"),
             "status": resume_data.get("status", "pending"),
             "target_role": resume_data.get("target_role"),
-            "created_at": datetime.utcnow().isoformat(),
+            # Preserve original creation time when re-saving an existing record
+            "created_at": resume_data.get("created_at") or datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
             "scores": resume_data.get("scores", {}),
             "overall_score": resume_data.get("overall_score"),
             "rank": resume_data.get("rank"),
             "extracted_data": resume_data.get("extracted_data", {}),
+            "text": resume_data.get("text"),
             "jd_match_score": resume_data.get("jd_match_score"),
             "deep_analysis": resume_data.get("deep_analysis"),
         }

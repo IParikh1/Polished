@@ -68,10 +68,10 @@ def sanitize_filename(filename: str) -> str:
     return name[:200] or "resume"
 
 
-def validate_upload_file(filename: str, content: bytes) -> str:
+def validate_upload_filename(filename: str) -> str:
     """
-    Validate an uploaded file's extension and size.
-    Returns the sanitized filename, or raises HTTPException.
+    Validate and sanitize an uploaded filename (extension allowlist).
+    Cheap check to run BEFORE reading the request body.
     """
     safe_name = sanitize_filename(filename or "")
     ext = "." + safe_name.lower().split(".")[-1] if "." in safe_name else ""
@@ -80,6 +80,15 @@ def validate_upload_file(filename: str, content: bytes) -> str:
             status_code=400,
             detail=f"File type {ext or '(none)'} not supported. Allowed: {ALLOWED_UPLOAD_EXTENSIONS}"
         )
+    return safe_name
+
+
+def validate_upload_file(filename: str, content: bytes) -> str:
+    """
+    Validate an uploaded file's extension and size.
+    Returns the sanitized filename, or raises HTTPException.
+    """
+    safe_name = validate_upload_filename(filename)
     if len(content) > MAX_UPLOAD_SIZE_BYTES:
         raise HTTPException(
             status_code=413,
@@ -438,13 +447,17 @@ async def get_upload_urls(
 
     upload_urls = []
     for filename in filenames:
+        # Same validation as direct uploads: sanitized name + extension allowlist
+        # (size can't be enforced on a presigned PUT - checked at processing time)
+        safe_name = validate_upload_filename(filename)
+
         resume_id = generate_resume_id()
 
         # Create resume record
-        await store.add_resume(batch_id, filename)
+        await store.add_resume(batch_id, safe_name)
 
         # Get upload URL
-        url_info = await store.get_resume_upload_url(batch_id, resume_id, filename)
+        url_info = await store.get_resume_upload_url(batch_id, resume_id, safe_name)
 
         if url_info:
             upload_urls.append(UploadUrlResponse(
@@ -479,7 +492,8 @@ async def upload_resume(
     # Verify ownership
     await verify_batch_ownership(batch_id, user.user_id)
 
-    # Read and validate file (type, size, sanitized name)
+    # Validate filename/extension before reading the body, then size after
+    validate_upload_filename(file.filename)
     content = await file.read()
     safe_name = validate_upload_file(file.filename, content)
 
@@ -546,6 +560,7 @@ async def upload_multiple_resumes(
             continue
 
         try:
+            validate_upload_filename(file.filename)
             content = await file.read()
             safe_name = validate_upload_file(file.filename, content)
             resume = await store.add_resume(

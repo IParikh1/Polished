@@ -1,13 +1,6 @@
-import axios from 'axios'
-
-const API_BASE = '/api/v1'
-
-const api = axios.create({
-  baseURL: API_BASE,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
+// Reuse the shared authenticated axios instance so consulting requests carry
+// the Clerk Bearer token (and the same VITE_API_URL base) as everything else.
+import { api } from './batchClient'
 
 // Types
 export interface ConsultingSession {
