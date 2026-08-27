@@ -150,7 +150,7 @@ Please provide the complete rewritten resume followed by the metadata sections (
         # Call Claude API
         try:
             response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-5",
                 max_tokens=4096,
                 messages=[
                     {"role": "user", "content": user_prompt}
@@ -230,7 +230,7 @@ CHANGES MADE:
 
         try:
             response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-5",
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
                 system=BASE_TECH_SALES_PROMPT,
@@ -339,7 +339,7 @@ DYNAMIC:
 
         try:
             response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-5",
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
                 system="You are an expert resume writer specializing in tech sales roles.",
@@ -440,7 +440,7 @@ NEEDS_METRICS: [true/false - if placeholder added]
 
         try:
             response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-5",
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
                 system="You are an expert resume writer. Enhance bullets while maintaining factual accuracy.",
