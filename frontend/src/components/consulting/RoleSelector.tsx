@@ -1,4 +1,4 @@
-import { Briefcase, Code, Database, Cloud, LineChart, Palette, Users, Shield } from 'lucide-react'
+import { Briefcase, Phone, PhoneCall, Target, Building2, HeartHandshake, Users } from 'lucide-react'
 import clsx from 'clsx'
 
 interface RoleSelectorProps {
@@ -6,14 +6,14 @@ interface RoleSelectorProps {
   onChange: (role: string) => void
 }
 
+// Mirrors the backend SalesRole enum so role-specific prompts line up
 const roles = [
-  { id: 'software_engineer', label: 'Software Engineer', icon: Code },
-  { id: 'data_scientist', label: 'Data Scientist', icon: Database },
-  { id: 'devops_engineer', label: 'DevOps Engineer', icon: Cloud },
-  { id: 'product_manager', label: 'Product Manager', icon: LineChart },
-  { id: 'ux_designer', label: 'UX Designer', icon: Palette },
-  { id: 'engineering_manager', label: 'Engineering Manager', icon: Users },
-  { id: 'security_engineer', label: 'Security Engineer', icon: Shield },
+  { id: 'entry_sdr', label: 'Entry SDR', icon: Phone },
+  { id: 'sdr', label: 'SDR / BDR', icon: PhoneCall },
+  { id: 'account_executive', label: 'Account Executive', icon: Target },
+  { id: 'senior_ae', label: 'Senior / Enterprise AE', icon: Building2 },
+  { id: 'account_manager', label: 'Account Manager / CSM', icon: HeartHandshake },
+  { id: 'sales_manager', label: 'Sales Manager / Director', icon: Users },
   { id: 'other', label: 'Other', icon: Briefcase },
 ]
 

@@ -158,7 +158,7 @@ Please provide the complete rewritten resume followed by the metadata sections (
                 system=system_prompt,
             )
 
-            response_text = response.content[0].text
+            response_text = self._extract_text(response)
 
             # Parse the response
             return self._parse_llm_response(response_text, template)
@@ -169,6 +169,13 @@ Please provide the complete rewritten resume followed by the metadata sections (
             return await self._generate_rule_based(
                 resume_text, target_role, job_description, metrics, template, extracted_data
             )
+
+    @staticmethod
+    def _extract_text(response) -> str:
+        """Join the text blocks of a response (skips thinking blocks)."""
+        return "".join(
+            block.text for block in response.content if getattr(block, "type", "") == "text"
+        )
 
     async def rewrite_section(
         self,
@@ -236,7 +243,7 @@ CHANGES MADE:
                 system=BASE_TECH_SALES_PROMPT,
             )
 
-            response_text = response.content[0].text
+            response_text = self._extract_text(response)
 
             # Parse response
             parts = response_text.split("CHANGES MADE:")
@@ -345,7 +352,7 @@ DYNAMIC:
                 system="You are an expert resume writer specializing in tech sales roles.",
             )
 
-            response_text = response.content[0].text
+            response_text = self._extract_text(response)
 
             # Parse variants
             summaries = {}
@@ -446,7 +453,7 @@ NEEDS_METRICS: [true/false - if placeholder added]
                 system="You are an expert resume writer. Enhance bullets while maintaining factual accuracy.",
             )
 
-            response_text = response.content[0].text
+            response_text = self._extract_text(response)
 
             # Parse enhanced bullets
             enhanced = []
@@ -635,9 +642,10 @@ Template: {template.value}
         years = data.get("years_of_experience", 0)
         skills = data.get("skills", [])[:5]
 
+        years_phrase = f"with {int(years)}+ years of experience" if years else "with proven experience"
         summary_text = (
             f"Results-driven {role_config.display_name if role_config else 'sales professional'} "
-            f"with {years}+ years of experience. "
+            f"{years_phrase}. "
             f"Expertise in {', '.join(skills[:3]) if skills else 'B2B sales'}. "
             f"Proven track record of exceeding targets and building strong client relationships."
         )
@@ -710,19 +718,20 @@ Template: {template.value}
         """Generate summary variants using rules."""
         role_name = role_config.display_name if role_config else target_role
         skill_str = ", ".join(skills[:3]) if skills else "sales and business development"
+        yrs = f"{int(years)}+ years" if years else None
 
         standard = (
-            f"Experienced {role_name.lower()} with {years}+ years in tech sales. "
+            f"Experienced {role_name.lower()} with {yrs + ' ' if yrs else 'a strong background '}in tech sales. "
             f"Skilled in {skill_str}. Committed to driving revenue growth and exceeding targets."
         )
 
         confident = (
-            f"Top-performing {role_name.lower()} with {years}+ years of consistently exceeding quota. "
+            f"Top-performing {role_name.lower()} with {yrs if yrs else 'a record'} of consistently exceeding quota. "
             f"Expert in {skill_str}, with a proven ability to close enterprise deals and drive significant revenue."
         )
 
         dynamic = (
-            f"High-energy {role_name.lower()} bringing {years}+ years of sales excellence. "
+            f"High-energy {role_name.lower()} bringing {yrs if yrs else 'a track record'} of sales excellence. "
             f"Known for {skill_str} and building lasting client relationships that fuel growth."
         )
 
