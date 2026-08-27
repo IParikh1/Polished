@@ -271,18 +271,61 @@ class AWSStore:
         self,
         batch_id: str,
         resume_id: str,
-        extracted_data: Dict[str, Any]
+        extracted_data: Dict[str, Any],
+        text: Optional[str] = None,
     ) -> bool:
-        """Store extracted resume data."""
+        """Store extracted resume data (and optionally the parsed raw text)."""
         resume = self.db.get_resume(batch_id, resume_id)
         if not resume:
             return False
 
         resume["extracted_data"] = extracted_data
+        if text:
+            resume["text"] = text
         resume["updated_at"] = datetime.utcnow().isoformat()
 
         self.db.add_resume_to_batch(resume)
         return True
+
+    async def get_resume_text(
+        self,
+        batch_id: str,
+        resume_id: str,
+        resume: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """
+        Get the parsed text for a resume.
+
+        Uses the cached 'text' field when present; otherwise downloads the
+        original file from S3, parses it, and caches the text on the record
+        (covers resumes processed before text persistence existed).
+        """
+        if resume is None:
+            resume = self.db.get_resume(batch_id, resume_id)
+        if not resume:
+            return ""
+
+        text = resume.get("text") or ""
+        if text:
+            return text
+
+        content = await self.get_resume_content(batch_id, resume_id)
+        if not content:
+            return ""
+
+        from .batch_processor import ResumeParser
+        try:
+            text = ResumeParser.parse(content, resume.get("filename", ""))
+        except Exception as e:
+            print(f"Error parsing resume text for {resume_id}: {e}")
+            return ""
+
+        if text and text.strip():
+            resume["text"] = text
+            resume["updated_at"] = datetime.utcnow().isoformat()
+            self.db.add_resume_to_batch(resume)
+
+        return text
 
     async def update_resume_jd_match(
         self,

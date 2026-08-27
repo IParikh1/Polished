@@ -387,9 +387,9 @@ class BatchProcessor:
             # Parse resume text
             text = self.parser.parse(content, resume["filename"])
 
-            # Extract structured data
+            # Extract structured data (persist raw text too for downstream features)
             extracted_data = self.extractor.extract(text)
-            await self.store.update_resume_extracted_data(batch_id, resume_id, extracted_data)
+            await self.store.update_resume_extracted_data(batch_id, resume_id, extracted_data, text=text)
 
             # Score resume
             if scoring_callback:

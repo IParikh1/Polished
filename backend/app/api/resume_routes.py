@@ -82,7 +82,7 @@ async def generate_resume(
         resume = await store.get_resume(request.batch_id, request.resume_id)
         if not resume:
             raise HTTPException(status_code=404, detail="Resume not found")
-        resume_text = resume.get("text", "")
+        resume_text = await store.get_resume_text(request.batch_id, request.resume_id, resume=resume)
         extracted_data = resume.get("extracted_data", {})
     else:
         raise HTTPException(
@@ -546,7 +546,7 @@ async def extract_metrics(
         resume = await store.get_resume(batch_id, resume_id)
         if not resume:
             raise HTTPException(status_code=404, detail="Resume not found")
-        resume_text = resume.get("text", "")
+        resume_text = await store.get_resume_text(batch_id, resume_id, resume=resume)
         extracted_data = resume.get("extracted_data", {})
     else:
         raise HTTPException(

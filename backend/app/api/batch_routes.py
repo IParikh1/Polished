@@ -951,7 +951,7 @@ async def match_job_description(
         resume = await store.get_resume(request.batch_id, request.resume_id)
         if not resume:
             raise HTTPException(status_code=404, detail="Resume not found")
-        resume_text = resume.get("text", "")
+        resume_text = await store.get_resume_text(request.batch_id, request.resume_id, resume=resume)
         resume_data = resume.get("extracted_data", {})
     else:
         raise HTTPException(
@@ -1018,7 +1018,7 @@ async def match_resume_to_jd(
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
 
-    resume_text = resume.get("text", "")
+    resume_text = await store.get_resume_text(batch_id, resume_id, resume=resume)
     resume_data = resume.get("extracted_data", {})
 
     if not resume_text:
@@ -1081,7 +1081,7 @@ async def tailor_resume(
         resume = await store.get_resume(request.batch_id, request.resume_id)
         if not resume:
             raise HTTPException(status_code=404, detail="Resume not found")
-        resume_text = resume.get("text", "")
+        resume_text = await store.get_resume_text(request.batch_id, request.resume_id, resume=resume)
         resume_data = resume.get("extracted_data", {})
     else:
         raise HTTPException(
