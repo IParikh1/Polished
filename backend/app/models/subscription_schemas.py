@@ -30,6 +30,7 @@ class ProFeature(str, Enum):
     JD_MATCHING = "jd_matching"
     DEEP_ANALYSIS = "deep_analysis"
     RESUME_WRITING = "resume_writing"
+    CONSULTING = "consulting"
     BULK_EXPORT = "bulk_export"
     PRIORITY_PROCESSING = "priority_processing"
 
@@ -50,6 +51,11 @@ FEATURE_INFO = {
         "name": "Resume Writing",
         "description": "AI-powered resume generation optimized for your target role",
         "icon": "edit",
+    },
+    ProFeature.CONSULTING: {
+        "name": "Resume Consulting",
+        "description": "Interactive AI consulting per resume: analysis, section rewrites, and chat",
+        "icon": "message-circle",
     },
     ProFeature.BULK_EXPORT: {
         "name": "Export to PDF/DOCX",
@@ -221,6 +227,7 @@ TIER_FEATURES = {
         ProFeature.JD_MATCHING,
         ProFeature.DEEP_ANALYSIS,
         ProFeature.RESUME_WRITING,
+        ProFeature.CONSULTING,
         ProFeature.BULK_EXPORT,
         ProFeature.PRIORITY_PROCESSING,
     },
@@ -228,6 +235,7 @@ TIER_FEATURES = {
         ProFeature.JD_MATCHING,
         ProFeature.DEEP_ANALYSIS,
         ProFeature.RESUME_WRITING,
+        ProFeature.CONSULTING,
         ProFeature.BULK_EXPORT,
         ProFeature.PRIORITY_PROCESSING,
     },

@@ -102,6 +102,7 @@ const TIERS = [
       'JD Matching',
       'AI Deep Analysis',
       'Resume Writing & PDF/DOCX export',
+      'Resume Consulting ($10 per resume)',
       'Priority processing',
     ],
     cta: 'Start with Pro',
