@@ -40,6 +40,7 @@ TIER_FEATURES: Dict[PremiumTier, Set[PremiumFeature]] = {
     PremiumTier.PRO: {
         PremiumFeature.JD_MATCHING,
         PremiumFeature.DEEP_ANALYSIS,
+        PremiumFeature.CONSULTING,
         PremiumFeature.RESUME_WRITING,
         PremiumFeature.BULK_EXPORT,
         PremiumFeature.API_ACCESS,
@@ -101,6 +102,7 @@ FEATURE_PRICING: Dict[PremiumFeature, Dict[str, float]] = {
         "per_batch": 25.00,
     },
     PremiumFeature.CONSULTING: {
+        "per_resume": 10.00,
         "per_session": 10.00,
         "per_rewrite": 5.00,
     },
@@ -115,7 +117,7 @@ FEATURE_PRICING: Dict[PremiumFeature, Dict[str, float]] = {
 TIER_PRICING: Dict[PremiumTier, Dict[str, float]] = {
     PremiumTier.FREE: {"monthly": 0, "yearly": 0},
     PremiumTier.BASIC: {"monthly": 29, "yearly": 290},
-    PremiumTier.PRO: {"monthly": 99, "yearly": 990},
+    PremiumTier.PRO: {"monthly": 29, "yearly": 290},
     PremiumTier.ENTERPRISE: {"monthly": 499, "yearly": 4990},
 }
 

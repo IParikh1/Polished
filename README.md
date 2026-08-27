@@ -11,10 +11,11 @@ A scalable resume sorting and ranking platform with tiered features for recruite
 - Automatic ranking by overall score
 - CSV/JSON export
 
-### Premium Add-ons
-1. **JD Matching** ($29/mo) - Match resumes against job descriptions with skill gap analysis
-2. **Deep Analysis** ($99/mo) - AI-powered strengths/weaknesses assessment
-3. **Resume Consulting** ($499/mo) - Interactive AI chat for resume improvement
+### Pro Tier ($29/mo)
+1. **JD Matching** - Match resumes against job descriptions with skill gap analysis
+2. **Deep Analysis** - AI-powered strengths/weaknesses assessment
+3. **Resume Writing** - AI-generated resumes with PDF/DOCX export
+4. **Resume Consulting** ($10 per resume) - Interactive AI analysis, rewrites, and chat
 
 ### Revenue System
 - Placement tracking with $250 per verified placement
